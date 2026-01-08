@@ -11,6 +11,7 @@ const AxigonWebsite = () => {
   const [loginData, setLoginData] = useState({ email: '', password: '' });
   const [signupData, setSignupData] = useState({ name: '', email: '', company: '', password: '' });
   const [error, setError] = useState('');
+  const [expandedCard, setExpandedCard] = useState(null);
 
   const handleLogin = (e) => {
     e.preventDefault();
@@ -143,6 +144,121 @@ const AxigonWebsite = () => {
             </div>
           </section>
 
+          <section className="py-24" style={{ backgroundColor: '#F7FAFF' }}>
+            <div className="max-w-7xl mx-auto px-6">
+              <h2 className="text-4xl font-bold text-center mb-4" style={{ color: '#0B1220' }}>Who It's Built For</h2>
+              <p className="text-center text-lg mb-16 max-w-3xl mx-auto" style={{ color: '#475569' }}>
+                <strong style={{ fontWeight: 'bold' }}>Built for AI Precision.</strong> Specialized agents designed for your team's exact workflow
+              </p>
+              
+              <div className="grid md:grid-cols-4 gap-6 mb-16">
+                {[
+                  { 
+                    title: 'Engineering Teams', 
+                    pain: 'Engineering teams lose productivity switching between tools and models for coding, debugging, and architectural decisions.',
+                    solution: 'Axigon automatically routes tasks to specialized engineering agents, delivering optimal results without context switching.'
+                  },
+                  { 
+                    title: 'Enterprise IT & Cloud', 
+                    pain: 'IT and cloud teams struggle with fragmented insights across security, cost optimization, and infrastructure reliability.',
+                    solution: 'Axigon uses intent-aware agents to unify cloud, security, and reliability intelligence into a single decision layer.'
+                  },
+                  { 
+                    title: 'Finance & Risk', 
+                    pain: 'Finance teams rely on delayed reports and manual analysis to assess risk and opportunity.',
+                    solution: 'Axigon deploys finance-focused agents that continuously analyze data, stress-test assumptions, and produce decision-ready insights.'
+                  },
+                  { 
+                    title: 'Operations & Strategy', 
+                    pain: 'Strategic decisions slow down due to conflicting inputs and incomplete analysis.',
+                    solution: 'Axigon synthesizes multiple expert agents into one clear, confidence-driven recommendation.'
+                  }
+                ].map((card, i) => (
+                  <div key={i} className="bg-white p-6 rounded-lg border" style={{ borderColor: '#E2E8F0' }}>
+                    <h3 className="text-lg font-bold mb-4" style={{ color: '#0B1220' }}>{card.title}</h3>
+                    <p className="mb-3 text-sm" style={{ color: '#DC2626' }}>
+                      <strong>Pain:</strong> {card.pain}
+                    </p>
+                    <div>
+                      <button 
+                        onClick={() => setExpandedCard(expandedCard === i ? null : i)}
+                        className="text-sm font-semibold flex items-center gap-1"
+                        style={{ color: '#635BFF' }}
+                      >
+                        Solution: {expandedCard === i ? 'Hide' : 'Read more...'}
+                      </button>
+                      {expandedCard === i && (
+                        <p className="mt-3 text-sm" style={{ color: '#0B1220' }}>
+                          {card.solution}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="max-w-5xl mx-auto p-10 rounded-lg" style={{ backgroundColor: '#0A2540' }}>
+                <h3 className="text-3xl font-bold mb-2 text-white text-center">Our Offerings</h3>
+                
+                <div className="mb-10">
+                  <h4 className="text-2xl font-bold mb-4 text-center" style={{ color: '#635BFF' }}>Intent-Aware AI Router</h4>
+                  <p className="text-center mb-2" style={{ color: '#94A3B8', fontSize: '14px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    (Invisible Aggregator)
+                  </p>
+                  <p className="text-lg mb-8 text-center max-w-3xl mx-auto" style={{ color: '#CBD5E1' }}>
+                    Users never choose a model — Axigon detects intent and silently routes each task to the most effective inbuilt, proprietary GPTs that outperform public general-purpose models.
+                  </p>
+
+                  <div className="grid md:grid-cols-5 gap-4">
+                    {[
+                      { task: 'Legal reasoning', model: 'Claude' },
+                      { task: 'Code refactor', model: 'GPT-4' },
+                      { task: 'Market research', model: 'Perplexity' },
+                      { task: 'Math proof', model: 'Gemini' },
+                      { task: 'Creative copy', model: 'Mixtral' }
+                    ].map((item, i) => (
+                      <div key={i} className="text-center p-4 rounded" style={{ backgroundColor: 'rgba(99, 91, 255, 0.1)' }}>
+                        <div className="font-semibold mb-2 text-white text-sm">{item.task}</div>
+                        <div className="text-xs px-2 py-1 rounded inline-block" style={{ backgroundColor: '#635BFF', color: 'white' }}>
+                          {item.model}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="border-t border-b py-8 mb-8" style={{ borderColor: '#1E293B' }}>
+                  <h4 className="text-2xl font-bold mb-4 text-center" style={{ color: '#635BFF' }}>Custom AIs</h4>
+                  <p className="text-lg text-center max-w-3xl mx-auto" style={{ color: '#CBD5E1' }}>
+                    Tailored AI agents built specifically for your organization's unique workflows, data, and business requirements. From specialized document processing to industry-specific analytics, we create AI that speaks your language.
+                  </p>
+                </div>
+
+                <div className="mb-8">
+                  <h4 className="text-xl font-bold mb-4 text-white">Why this wins</h4>
+                  <div className="space-y-3">
+                    {[
+                      'Zero friction',
+                      'Feels like one super-intelligent AI',
+                      'Models are interchangeable commodities under the hood'
+                    ].map((point, i) => (
+                      <div key={i} className="flex items-start gap-3">
+                        <div className="w-1.5 h-1.5 rounded-full mt-2" style={{ backgroundColor: '#635BFF' }}></div>
+                        <span style={{ color: '#CBD5E1' }}>{point}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="text-center p-6 rounded" style={{ backgroundColor: 'rgba(99, 91, 255, 0.15)' }}>
+                  <p className="text-xl font-bold text-white leading-relaxed">
+                    This is how future AI user experience will look — intelligent, invisible, and precision-driven.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </section>
+
           <section className="py-16" style={{ backgroundColor: '#F7FAFF' }}>
             <div className="max-w-7xl mx-auto px-6">
               <p className="text-center text-sm uppercase tracking-wider mb-10 font-medium text-gray-500">Trusted by Enterprise Leaders</p>
@@ -234,6 +350,106 @@ const AxigonWebsite = () => {
                   We don't build AI that knows a little about everything.<br />
                   We build AI that masters one thing—and delivers results.
                 </p>
+              </div>
+            </div>
+          </section>
+
+          <section className="py-24" style={{ backgroundColor: '#F7FAFF' }}>
+            <div className="max-w-7xl mx-auto px-6">
+              <h2 className="text-4xl font-bold text-center mb-4" style={{ color: '#0B1220' }}>Built for AI Precision</h2>
+              <p className="text-center text-lg mb-16 max-w-3xl mx-auto" style={{ color: '#475569' }}>
+                Specialized agents designed for your team's exact workflow
+              </p>
+              
+              <div className="grid md:grid-cols-2 gap-6 mb-16">
+                <div className="bg-white p-8 rounded-lg border" style={{ borderColor: '#E2E8F0' }}>
+                  <h3 className="text-xl font-bold mb-4" style={{ color: '#0B1220' }}>Engineering Teams</h3>
+                  <p className="mb-4" style={{ color: '#DC2626' }}>
+                    <strong>Pain:</strong> Engineering teams lose productivity switching between tools and models for coding, debugging, and architectural decisions.
+                  </p>
+                  <p style={{ color: '#0B1220' }}>
+                    <strong style={{ color: '#635BFF' }}>Solution:</strong> Axigon automatically routes tasks to specialized engineering agents, delivering optimal results without context switching.
+                  </p>
+                </div>
+
+                <div className="bg-white p-8 rounded-lg border" style={{ borderColor: '#E2E8F0' }}>
+                  <h3 className="text-xl font-bold mb-4" style={{ color: '#0B1220' }}>Enterprise IT & Cloud</h3>
+                  <p className="mb-4" style={{ color: '#DC2626' }}>
+                    <strong>Pain:</strong> IT and cloud teams struggle with fragmented insights across security, cost optimization, and infrastructure reliability.
+                  </p>
+                  <p style={{ color: '#0B1220' }}>
+                    <strong style={{ color: '#635BFF' }}>Solution:</strong> Axigon uses intent-aware agents to unify cloud, security, and reliability intelligence into a single decision layer.
+                  </p>
+                </div>
+
+                <div className="bg-white p-8 rounded-lg border" style={{ borderColor: '#E2E8F0' }}>
+                  <h3 className="text-xl font-bold mb-4" style={{ color: '#0B1220' }}>Finance & Risk</h3>
+                  <p className="mb-4" style={{ color: '#DC2626' }}>
+                    <strong>Pain:</strong> Finance teams rely on delayed reports and manual analysis to assess risk and opportunity.
+                  </p>
+                  <p style={{ color: '#0B1220' }}>
+                    <strong style={{ color: '#635BFF' }}>Solution:</strong> Axigon deploys finance-focused agents that continuously analyze data, stress-test assumptions, and produce decision-ready insights.
+                  </p>
+                </div>
+
+                <div className="bg-white p-8 rounded-lg border" style={{ borderColor: '#E2E8F0' }}>
+                  <h3 className="text-xl font-bold mb-4" style={{ color: '#0B1220' }}>Operations & Strategy</h3>
+                  <p className="mb-4" style={{ color: '#DC2626' }}>
+                    <strong>Pain:</strong> Strategic decisions slow down due to conflicting inputs and incomplete analysis.
+                  </p>
+                  <p style={{ color: '#0B1220' }}>
+                    <strong style={{ color: '#635BFF' }}>Solution:</strong> Axigon synthesizes multiple expert agents into one clear, confidence-driven recommendation.
+                  </p>
+                </div>
+              </div>
+
+              <div className="max-w-5xl mx-auto p-10 rounded-lg" style={{ backgroundColor: '#0A2540' }}>
+                <h3 className="text-3xl font-bold mb-6 text-white text-center">Intent-Aware AI Router</h3>
+                <p className="text-center mb-4" style={{ color: '#94A3B8', fontSize: '14px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  (Invisible Aggregator)
+                </p>
+                <p className="text-lg mb-8 text-center max-w-3xl mx-auto" style={{ color: '#CBD5E1' }}>
+                  Users never choose a model — Axigon detects intent and silently routes each task to the most effective inbuilt, proprietary GPTs that outperform public general-purpose models.
+                </p>
+
+                <div className="grid md:grid-cols-5 gap-4 mb-8">
+                  {[
+                    { task: 'Legal reasoning', model: 'Claude' },
+                    { task: 'Code refactor', model: 'GPT-4' },
+                    { task: 'Market research', model: 'Perplexity' },
+                    { task: 'Math proof', model: 'Gemini' },
+                    { task: 'Creative copy', model: 'Mixtral' }
+                  ].map((item, i) => (
+                    <div key={i} className="text-center p-4 rounded" style={{ backgroundColor: 'rgba(99, 91, 255, 0.1)' }}>
+                      <div className="font-semibold mb-2 text-white text-sm">{item.task}</div>
+                      <div className="text-xs px-2 py-1 rounded inline-block" style={{ backgroundColor: '#635BFF', color: 'white' }}>
+                        {item.model}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="border-t pt-8" style={{ borderColor: '#1E293B' }}>
+                  <h4 className="text-xl font-bold mb-4 text-white">Why this wins</h4>
+                  <div className="space-y-3">
+                    {[
+                      'Zero friction',
+                      'Feels like one super-intelligent AI',
+                      'Models are interchangeable commodities under the hood'
+                    ].map((point, i) => (
+                      <div key={i} className="flex items-start gap-3">
+                        <div className="w-1.5 h-1.5 rounded-full mt-2" style={{ backgroundColor: '#635BFF' }}></div>
+                        <span style={{ color: '#CBD5E1' }}>{point}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="mt-8 text-center p-6 rounded" style={{ backgroundColor: 'rgba(99, 91, 255, 0.15)' }}>
+                  <p className="text-xl font-bold text-white leading-relaxed">
+                    This is how future AI user experience will look — intelligent, invisible, and precision-driven.
+                  </p>
+                </div>
               </div>
             </div>
           </section>
