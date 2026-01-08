@@ -6,6 +6,59 @@ const AxigonWebsite = () => {
   const [activeTab, setActiveTab] = useState('consulting');
   const [scrolled, setScrolled] = useState(false);
   const [currentSlide, setCurrentSlide] = useState(0);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [user, setUser] = useState(null);
+  const [loginData, setLoginData] = useState({ email: '', password: '' });
+  const [signupData, setSignupData] = useState({ name: '', email: '', company: '', password: '' });
+  const [error, setError] = useState('');
+
+  const handleLogin = (e) => {
+    e.preventDefault();
+    setError('');
+    
+    // Simple validation
+    if (!loginData.email || !loginData.password) {
+      setError('Please fill in all fields');
+      return;
+    }
+    
+    // Check if user exists (demo: any email/password works)
+    const userData = { name: loginData.email.split('@')[0], email: loginData.email };
+    setUser(userData);
+    setIsLoggedIn(true);
+    setCurrentPage('marketplace');
+    alert('Login successful! Welcome to Axigon AI');
+  };
+
+  const handleSignup = (e) => {
+    e.preventDefault();
+    setError('');
+    
+    // Validation
+    if (!signupData.name || !signupData.email || !signupData.company || !signupData.password) {
+      setError('Please fill in all fields');
+      return;
+    }
+    
+    if (signupData.password.length < 6) {
+      setError('Password must be at least 6 characters');
+      return;
+    }
+    
+    // Create user account
+    const userData = { name: signupData.name, email: signupData.email, company: signupData.company };
+    setUser(userData);
+    setIsLoggedIn(true);
+    setCurrentPage('marketplace');
+    alert('Account created successfully! Welcome to Axigon AI');
+  };
+
+  const handleLogout = () => {
+    setUser(null);
+    setIsLoggedIn(false);
+    setCurrentPage('company');
+    alert('Logged out successfully');
+  };
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 50);
@@ -55,10 +108,19 @@ const AxigonWebsite = () => {
             Axigon<span style={{ color: '#635BFF' }}>AI</span>
           </button>
           <div className="flex items-center gap-4">
-            <button className="px-6 py-2.5 rounded font-semibold text-sm text-white transition" style={{ backgroundColor: '#635BFF' }}>Request Demo</button>
-            <button className="px-6 py-2.5 rounded font-semibold text-sm border-2 border-white text-white hover:bg-white hover:text-slate-900 transition flex items-center gap-2">
-              <Play size={16} /> Watch Video
-            </button>
+            {isLoggedIn ? (
+              <>
+                <span className="text-white text-sm">Hi, {user.name}!</span>
+                <button onClick={handleLogout} className="px-6 py-2.5 rounded font-semibold text-sm text-white transition" style={{ backgroundColor: '#635BFF' }}>Logout</button>
+              </>
+            ) : (
+              <>
+                <button className="px-6 py-2.5 rounded font-semibold text-sm text-white transition" style={{ backgroundColor: '#635BFF' }}>Request Demo</button>
+                <button className="px-6 py-2.5 rounded font-semibold text-sm border-2 border-white text-white hover:bg-white hover:text-slate-900 transition flex items-center gap-2">
+                  <Play size={16} /> Watch Video
+                </button>
+              </>
+            )}
           </div>
         </div>
       </nav>
@@ -86,6 +148,92 @@ const AxigonWebsite = () => {
               <p className="text-center text-sm uppercase tracking-wider mb-10 font-medium text-gray-500">Trusted by Enterprise Leaders</p>
               <div className="grid grid-cols-3 md:grid-cols-6 gap-8 items-center">
                 {partners.map((p, i) => <div key={i} className="text-center opacity-30 hover:opacity-50 transition"><div className="text-xl font-bold text-gray-700">{p}</div></div>)}
+              </div>
+            </div>
+          </section>
+
+          <section className="py-24 bg-white">
+            <div className="max-w-7xl mx-auto px-6">
+              <h2 className="text-4xl font-bold text-center mb-16" style={{ color: '#0B1220' }}>Why Axigon AI</h2>
+              
+              <div className="max-w-5xl mx-auto p-8 rounded-lg border" style={{ backgroundColor: '#0A2540', borderColor: '#635BFF', borderWidth: '2px' }}>
+                <div className="grid md:grid-cols-2 gap-12">
+                  <div>
+                    <h3 className="text-xl font-bold mb-6" style={{ color: '#999' }}>General-Purpose AI</h3>
+                    <div className="space-y-4">
+                      <div className="flex items-start gap-3">
+                        <div className="w-2 h-2 rounded-full mt-2" style={{ backgroundColor: '#666' }}></div>
+                        <div>
+                          <div className="font-semibold mb-1" style={{ color: '#999' }}>Generic LLM</div>
+                          <p className="text-sm" style={{ color: '#777' }}>Trained on broad datasets, lacks domain depth</p>
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-3">
+                        <div className="w-2 h-2 rounded-full mt-2" style={{ backgroundColor: '#666' }}></div>
+                        <div>
+                          <div className="font-semibold mb-1" style={{ color: '#999' }}>One-size-fits-all</div>
+                          <p className="text-sm" style={{ color: '#777' }}>Attempts everything, masters nothing</p>
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-3">
+                        <div className="w-2 h-2 rounded-full mt-2" style={{ backgroundColor: '#666' }}></div>
+                        <div>
+                          <div className="font-semibold mb-1" style={{ color: '#999' }}>Probabilistic answers</div>
+                          <p className="text-sm" style={{ color: '#777' }}>Inconsistent outputs, requires verification</p>
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-3">
+                        <div className="w-2 h-2 rounded-full mt-2" style={{ backgroundColor: '#666' }}></div>
+                        <div>
+                          <div className="font-semibold mb-1" style={{ color: '#999' }}>Chat responses</div>
+                          <p className="text-sm" style={{ color: '#777' }}>Conversational but not integrated</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="relative">
+                    <div className="absolute -top-4 -right-4 px-3 py-1 text-xs font-bold" style={{ backgroundColor: '#635BFF', color: 'white' }}>AXIGON APPROACH</div>
+                    <h3 className="text-xl font-bold mb-6 text-white">Axigon Specialized Agents</h3>
+                    <div className="space-y-4">
+                      <div className="flex items-start gap-3">
+                        <div className="w-2 h-2 rounded-full mt-2" style={{ backgroundColor: '#635BFF' }}></div>
+                        <div>
+                          <div className="font-semibold mb-1 text-white">Domain-trained agents</div>
+                          <p className="text-sm" style={{ color: '#CBD5E1' }}>Deep expertise in specific verticals</p>
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-3">
+                        <div className="w-2 h-2 rounded-full mt-2" style={{ backgroundColor: '#635BFF' }}></div>
+                        <div>
+                          <div className="font-semibold mb-1 text-white">Purpose-built</div>
+                          <p className="text-sm" style={{ color: '#CBD5E1' }}>Designed for precision in one domain</p>
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-3">
+                        <div className="w-2 h-2 rounded-full mt-2" style={{ backgroundColor: '#635BFF' }}></div>
+                        <div>
+                          <div className="font-semibold mb-1 text-white">Deterministic workflows</div>
+                          <p className="text-sm" style={{ color: '#CBD5E1' }}>Reliable, repeatable, production-ready</p>
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-3">
+                        <div className="w-2 h-2 rounded-full mt-2" style={{ backgroundColor: '#635BFF' }}></div>
+                        <div>
+                          <div className="font-semibold mb-1 text-white">Actionable outputs</div>
+                          <p className="text-sm" style={{ color: '#CBD5E1' }}>Integrated directly into your systems</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-12 text-center max-w-4xl mx-auto">
+                <p className="text-xl font-bold leading-relaxed" style={{ color: '#0B1220' }}>
+                  We don't build AI that knows a little about everything.<br />
+                  We build AI that masters one thing—and delivers results.
+                </p>
               </div>
             </div>
           </section>
@@ -219,22 +367,39 @@ const AxigonWebsite = () => {
             <div className="rounded-lg p-8 shadow-lg border bg-white" style={{ borderColor: '#E2E8F0' }}>
               <h2 className="text-3xl font-bold mb-2 text-center" style={{ color: '#0B1220' }}>Welcome Back</h2>
               <p className="text-center mb-8" style={{ color: '#475569' }}>Log in to your Axigon AI account</p>
-              <div className="space-y-4">
+              
+              {error && <div className="mb-4 p-3 rounded" style={{ backgroundColor: '#fee', color: '#c33' }}>{error}</div>}
+              
+              <form onSubmit={handleLogin} className="space-y-4">
                 <div>
                   <label className="block text-sm font-semibold mb-2" style={{ color: '#0B1220' }}>Email</label>
-                  <input type="email" placeholder="you@company.com" className="w-full px-4 py-3 rounded border outline-none" style={{ borderColor: '#E2E8F0' }} />
+                  <input 
+                    type="email" 
+                    placeholder="you@company.com" 
+                    value={loginData.email}
+                    onChange={(e) => setLoginData({...loginData, email: e.target.value})}
+                    className="w-full px-4 py-3 rounded border outline-none" 
+                    style={{ borderColor: '#E2E8F0' }} 
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-semibold mb-2" style={{ color: '#0B1220' }}>Password</label>
-                  <input type="password" placeholder="Enter your password" className="w-full px-4 py-3 rounded border outline-none" style={{ borderColor: '#E2E8F0' }} />
+                  <input 
+                    type="password" 
+                    placeholder="Enter your password" 
+                    value={loginData.password}
+                    onChange={(e) => setLoginData({...loginData, password: e.target.value})}
+                    className="w-full px-4 py-3 rounded border outline-none" 
+                    style={{ borderColor: '#E2E8F0' }} 
+                  />
                 </div>
                 <div className="flex items-center justify-between text-sm">
                   <label className="flex items-center gap-2" style={{ color: '#475569' }}><input type="checkbox" />Remember me</label>
                   <a href="#" style={{ color: '#635BFF' }}>Forgot password?</a>
                 </div>
-                <button className="w-full py-3 rounded font-semibold text-white" style={{ backgroundColor: '#635BFF' }}>Log In</button>
-                <p className="text-center text-sm" style={{ color: '#475569' }}>Don't have an account? <button onClick={() => setCurrentPage('signup')} className="font-semibold" style={{ color: '#635BFF' }}>Sign up</button></p>
-              </div>
+                <button type="submit" className="w-full py-3 rounded font-semibold text-white" style={{ backgroundColor: '#635BFF' }}>Log In</button>
+                <p className="text-center text-sm" style={{ color: '#475569' }}>Don't have an account? <button type="button" onClick={() => setCurrentPage('signup')} className="font-semibold" style={{ color: '#635BFF' }}>Sign up</button></p>
+              </form>
             </div>
           </div>
         </section>
@@ -246,15 +411,18 @@ const AxigonWebsite = () => {
             <div className="rounded-lg p-8 shadow-lg border bg-white" style={{ borderColor: '#E2E8F0' }}>
               <h2 className="text-3xl font-bold mb-2 text-center" style={{ color: '#0B1220' }}>Create Account</h2>
               <p className="text-center mb-8" style={{ color: '#475569' }}>Get started with Axigon AI</p>
-              <div className="space-y-4">
-                <div><label className="block text-sm font-semibold mb-2" style={{ color: '#0B1220' }}>Full Name</label><input type="text" placeholder="John Doe" className="w-full px-4 py-3 rounded border outline-none" style={{ borderColor: '#E2E8F0' }} /></div>
-                <div><label className="block text-sm font-semibold mb-2" style={{ color: '#0B1220' }}>Company Email</label><input type="email" placeholder="you@company.com" className="w-full px-4 py-3 rounded border outline-none" style={{ borderColor: '#E2E8F0' }} /></div>
-                <div><label className="block text-sm font-semibold mb-2" style={{ color: '#0B1220' }}>Company Name</label><input type="text" placeholder="Your Company" className="w-full px-4 py-3 rounded border outline-none" style={{ borderColor: '#E2E8F0' }} /></div>
-                <div><label className="block text-sm font-semibold mb-2" style={{ color: '#0B1220' }}>Password</label><input type="password" placeholder="Create a password" className="w-full px-4 py-3 rounded border outline-none" style={{ borderColor: '#E2E8F0' }} /></div>
-                <label className="flex items-start gap-2 text-sm" style={{ color: '#475569' }}><input type="checkbox" className="mt-1" /><span>I agree to the Terms of Service and Privacy Policy</span></label>
-                <button className="w-full py-3 rounded font-semibold text-white" style={{ backgroundColor: '#635BFF' }}>Create Account</button>
-                <p className="text-center text-sm" style={{ color: '#475569' }}>Already have an account? <button onClick={() => setCurrentPage('login')} className="font-semibold" style={{ color: '#635BFF' }}>Log in</button></p>
-              </div>
+              
+              {error && <div className="mb-4 p-3 rounded" style={{ backgroundColor: '#fee', color: '#c33' }}>{error}</div>}
+              
+              <form onSubmit={handleSignup} className="space-y-4">
+                <div><label className="block text-sm font-semibold mb-2" style={{ color: '#0B1220' }}>Full Name</label><input type="text" placeholder="John Doe" value={signupData.name} onChange={(e) => setSignupData({...signupData, name: e.target.value})} className="w-full px-4 py-3 rounded border outline-none" style={{ borderColor: '#E2E8F0' }} /></div>
+                <div><label className="block text-sm font-semibold mb-2" style={{ color: '#0B1220' }}>Company Email</label><input type="email" placeholder="you@company.com" value={signupData.email} onChange={(e) => setSignupData({...signupData, email: e.target.value})} className="w-full px-4 py-3 rounded border outline-none" style={{ borderColor: '#E2E8F0' }} /></div>
+                <div><label className="block text-sm font-semibold mb-2" style={{ color: '#0B1220' }}>Company Name</label><input type="text" placeholder="Your Company" value={signupData.company} onChange={(e) => setSignupData({...signupData, company: e.target.value})} className="w-full px-4 py-3 rounded border outline-none" style={{ borderColor: '#E2E8F0' }} /></div>
+                <div><label className="block text-sm font-semibold mb-2" style={{ color: '#0B1220' }}>Password</label><input type="password" placeholder="Create a password" value={signupData.password} onChange={(e) => setSignupData({...signupData, password: e.target.value})} className="w-full px-4 py-3 rounded border outline-none" style={{ borderColor: '#E2E8F0' }} /></div>
+                <label className="flex items-start gap-2 text-sm" style={{ color: '#475569' }}><input type="checkbox" className="mt-1" required /><span>I agree to the Terms of Service and Privacy Policy</span></label>
+                <button type="submit" className="w-full py-3 rounded font-semibold text-white" style={{ backgroundColor: '#635BFF' }}>Create Account</button>
+                <p className="text-center text-sm" style={{ color: '#475569' }}>Already have an account? <button type="button" onClick={() => setCurrentPage('login')} className="font-semibold" style={{ color: '#635BFF' }}>Log in</button></p>
+              </form>
             </div>
           </div>
         </section>
