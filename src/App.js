@@ -14,6 +14,15 @@ const AxigonWebsite = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  useEffect(() => {
+    const link = document.querySelector("link[rel*='icon']") || document.createElement('link');
+    link.type = 'image/svg+xml';
+    link.rel = 'icon';
+    link.href = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="%230A2540"/><text x="50" y="75" font-family="Arial" font-size="70" font-weight="bold" fill="%23635BFF" text-anchor="middle">A</text></svg>';
+    document.head.appendChild(link);
+    document.title = 'Axigon AI - Enterprise AI Solutions';
+  }, []);
+
   const solutions = {
     consulting: { title: 'AI Strategy Consulting', desc: 'Deploy AI that delivers measurable business outcomes', points: ['Identify high-impact use cases', 'Build implementation roadmaps', 'Navigate organizational change'] },
     audit: { title: 'AI System Audit', desc: 'Verify security, compliance, and performance', points: ['Risk assessment', 'Compliance validation', 'Performance optimization'] },
