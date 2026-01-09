@@ -7,6 +7,11 @@ const AxigonWebsite = () => {
   const [scrolled, setScrolled] = useState(false);
   const [currentSlide, setCurrentSlide] = useState(0);
   const [expandedCard, setExpandedCard] = useState(null);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [user, setUser] = useState(null);
+  const [loginData, setLoginData] = useState({ email: '', password: '' });
+  const [signupData, setSignupData] = useState({ name: '', email: '', company: '', password: '' });
+  const [error, setError] = useState('');
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 50);
@@ -23,6 +28,45 @@ const AxigonWebsite = () => {
     document.title = 'Axigon AI - Enterprise AI Solutions';
   }, []);
 
+  const handleLogin = (e) => {
+    e.preventDefault();
+    setError('');
+    if (!loginData.email || !loginData.password) {
+      setError('Please fill in all fields');
+      return;
+    }
+    const userData = { name: loginData.email.split('@')[0], email: loginData.email };
+    setUser(userData);
+    setIsLoggedIn(true);
+    setCurrentPage('marketplace');
+    alert('Login successful! Welcome to Axigon AI');
+  };
+
+  const handleSignup = (e) => {
+    e.preventDefault();
+    setError('');
+    if (!signupData.name || !signupData.email || !signupData.company || !signupData.password) {
+      setError('Please fill in all fields');
+      return;
+    }
+    if (signupData.password.length < 6) {
+      setError('Password must be at least 6 characters');
+      return;
+    }
+    const userData = { name: signupData.name, email: signupData.email, company: signupData.company };
+    setUser(userData);
+    setIsLoggedIn(true);
+    setCurrentPage('marketplace');
+    alert('Account created successfully! Welcome to Axigon AI');
+  };
+
+  const handleLogout = () => {
+    setUser(null);
+    setIsLoggedIn(false);
+    setCurrentPage('company');
+    alert('Logged out successfully');
+  };
+
   const solutions = {
     consulting: { title: 'AI Strategy Consulting', desc: 'Deploy AI that delivers measurable business outcomes', points: ['Identify high-impact use cases', 'Build implementation roadmaps', 'Navigate organizational change'] },
     audit: { title: 'AI System Audit', desc: 'Verify security, compliance, and performance', points: ['Risk assessment', 'Compliance validation', 'Performance optimization'] },
@@ -37,6 +81,15 @@ const AxigonWebsite = () => {
     { name: 'James Anderson', role: 'Head of AI Research' }
   ];
 
+  const agents = [
+    { name: 'ContractAI', domain: 'Legal Analysis', desc: 'Extract obligations, risks, and key terms from complex legal documents' },
+    { name: 'FinanceGPT', domain: 'Financial Forecasting', desc: 'Generate revenue projections and scenario analysis from historical data' },
+    { name: 'ComplianceWatch', domain: 'Regulatory Compliance', desc: 'Monitor regulatory changes and flag compliance gaps' },
+    { name: 'DataGuard', domain: 'Data Quality', desc: 'Detect anomalies, validate schemas, and ensure data integrity' },
+    { name: 'CustomerInsight', domain: 'Customer Intelligence', desc: 'Analyze customer behavior patterns and predict churn' },
+    { name: 'SupplyChainAI', domain: 'Supply Chain', desc: 'Optimize inventory levels and predict disruptions' }
+  ];
+
   const partners = ['MICROSOFT', 'AMAZON', 'GOOGLE CLOUD', 'IBM', 'ORACLE', 'SAP'];
 
   return (
@@ -47,10 +100,19 @@ const AxigonWebsite = () => {
             Axigon<span style={{ color: '#635BFF' }}>AI</span>
           </button>
           <div className="flex gap-4">
-            <button className="px-6 py-2.5 rounded text-sm text-white" style={{ backgroundColor: '#635BFF' }}>Request Demo</button>
-            <button className="px-6 py-2.5 rounded text-sm border-2 border-white text-white flex items-center gap-2">
-              <Play size={16} /> Watch Video
-            </button>
+            {isLoggedIn ? (
+              <>
+                <span className="text-white text-sm">Hi, {user.name}!</span>
+                <button onClick={handleLogout} className="px-6 py-2.5 rounded text-sm text-white" style={{ backgroundColor: '#635BFF' }}>Logout</button>
+              </>
+            ) : (
+              <>
+                <button className="px-6 py-2.5 rounded text-sm text-white" style={{ backgroundColor: '#635BFF' }}>Request Demo</button>
+                <button className="px-6 py-2.5 rounded text-sm border-2 border-white text-white flex items-center gap-2">
+                  <Play size={16} /> Watch Video
+                </button>
+              </>
+            )}
           </div>
         </div>
       </nav>
@@ -281,6 +343,120 @@ const AxigonWebsite = () => {
             </div>
           </section>
         </>
+      )}
+
+      {currentPage === 'marketplace' && (
+        <>
+          <section className="relative pt-32 pb-20" style={{ background: 'linear-gradient(135deg, #071A2E 0%, #0A2540 50%, #0B2D5B 100%)' }}>
+            <div className="absolute inset-0" style={{ background: 'radial-gradient(circle at 50% 50%, rgba(99, 91, 255, 0.08) 0%, transparent 70%)' }}></div>
+            <div className="max-w-7xl mx-auto px-6 text-center relative z-10">
+              <h1 className="text-5xl md:text-6xl font-bold mb-6 text-white">AI Agents Marketplace</h1>
+              <p className="text-xl max-w-3xl mx-auto mb-4" style={{ color: '#CBD5E1' }}>Purpose-built AI agents, each specialized for a single domain</p>
+              <p className="text-lg max-w-2xl mx-auto mb-8" style={{ color: '#94A3B8' }}>These are not generic chatbots. Each agent is outcome-driven and optimized for precision.</p>
+              <div className="flex gap-4 justify-center">
+                <button onClick={() => setCurrentPage('login')} className="px-8 py-3 rounded font-semibold text-white" style={{ backgroundColor: '#635BFF' }}>Login</button>
+                <button onClick={() => setCurrentPage('signup')} className="px-8 py-3 rounded font-semibold border-2 border-white text-white">Sign Up</button>
+              </div>
+            </div>
+          </section>
+
+          <section className="py-20 bg-white">
+            <div className="max-w-7xl mx-auto px-6">
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                {agents.map((a, i) => (
+                  <div key={i} className="rounded-lg p-5 border aspect-square flex flex-col bg-white" style={{ borderColor: '#E2E8F0' }}>
+                    <div className="w-10 h-10 rounded-lg flex items-center justify-center mb-3" style={{ backgroundColor: '#FFF4E0' }}>
+                      <div style={{ color: '#C58B2A', fontSize: '20px' }}>AI</div>
+                    </div>
+                    <h3 className="text-base font-bold mb-1" style={{ color: '#0B1220' }}>{a.name}</h3>
+                    <div className="text-xs font-semibold mb-3 uppercase" style={{ color: '#635BFF' }}>{a.domain}</div>
+                    <p className="leading-snug mb-3 flex-grow text-xs" style={{ color: '#475569' }}>{a.desc}</p>
+                    <button className="text-xs font-semibold mt-auto" style={{ color: '#635BFF' }}>View Agent</button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
+
+          <section className="py-20" style={{ backgroundColor: '#F7FAFF' }}>
+            <div className="max-w-7xl mx-auto px-6">
+              <h2 className="text-3xl font-bold text-center mb-6" style={{ color: '#0B1220' }}>Why Specialized Agents?</h2>
+              <p className="text-lg text-center max-w-4xl mx-auto mb-16" style={{ color: '#475569' }}>Generalist AI models attempt to do everything. Our agents master one domain.</p>
+              <div className="grid md:grid-cols-4 gap-8">
+                {[{ n: '100+', t: 'LLMs Across Ecosystems' }, { n: '20+', t: 'Specialized Domains' }, { n: '99.9%', t: 'System Uptime' }, { n: '10×', t: 'Faster Insights' }].map((s, i) => (
+                  <div key={i} className="p-8 rounded-lg border text-center bg-white" style={{ borderColor: '#E2E8F0' }}>
+                    <div className="text-4xl font-bold mb-3" style={{ color: '#635BFF' }}>{s.n}</div>
+                    <div className="text-sm" style={{ color: '#475569' }}>{s.t}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
+        </>
+      )}
+
+      {currentPage === 'login' && (
+        <section className="min-h-screen flex items-center justify-center pt-20" style={{ backgroundColor: '#F7FAFF' }}>
+          <div className="w-full max-w-md px-6">
+            <div className="rounded-lg p-8 shadow-lg border bg-white" style={{ borderColor: '#E2E8F0' }}>
+              <h2 className="text-3xl font-bold mb-2 text-center" style={{ color: '#0B1220' }}>Welcome Back</h2>
+              <p className="text-center mb-8" style={{ color: '#475569' }}>Log in to your Axigon AI account</p>
+              {error && <div className="mb-4 p-3 rounded" style={{ backgroundColor: '#fee', color: '#c33' }}>{error}</div>}
+              <form onSubmit={handleLogin} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-semibold mb-2" style={{ color: '#0B1220' }}>Email</label>
+                  <input type="email" placeholder="you@company.com" value={loginData.email} onChange={(e) => setLoginData({...loginData, email: e.target.value})} className="w-full px-4 py-3 rounded border outline-none" style={{ borderColor: '#E2E8F0' }} />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold mb-2" style={{ color: '#0B1220' }}>Password</label>
+                  <input type="password" placeholder="Enter password" value={loginData.password} onChange={(e) => setLoginData({...loginData, password: e.target.value})} className="w-full px-4 py-3 rounded border outline-none" style={{ borderColor: '#E2E8F0' }} />
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <label className="flex items-center gap-2" style={{ color: '#475569' }}><input type="checkbox" />Remember me</label>
+                  <a href="#" style={{ color: '#635BFF' }}>Forgot password?</a>
+                </div>
+                <button type="submit" className="w-full py-3 rounded font-semibold text-white" style={{ backgroundColor: '#635BFF' }}>Log In</button>
+                <p className="text-center text-sm" style={{ color: '#475569' }}>Don't have an account? <button type="button" onClick={() => setCurrentPage('signup')} className="font-semibold" style={{ color: '#635BFF' }}>Sign up</button></p>
+              </form>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {currentPage === 'signup' && (
+        <section className="min-h-screen flex items-center justify-center pt-20 pb-10" style={{ backgroundColor: '#F7FAFF' }}>
+          <div className="w-full max-w-md px-6">
+            <div className="rounded-lg p-8 shadow-lg border bg-white" style={{ borderColor: '#E2E8F0' }}>
+              <h2 className="text-3xl font-bold mb-2 text-center" style={{ color: '#0B1220' }}>Create Account</h2>
+              <p className="text-center mb-8" style={{ color: '#475569' }}>Get started with Axigon AI</p>
+              {error && <div className="mb-4 p-3 rounded" style={{ backgroundColor: '#fee', color: '#c33' }}>{error}</div>}
+              <form onSubmit={handleSignup} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-semibold mb-2" style={{ color: '#0B1220' }}>Full Name</label>
+                  <input type="text" placeholder="John Doe" value={signupData.name} onChange={(e) => setSignupData({...signupData, name: e.target.value})} className="w-full px-4 py-3 rounded border outline-none" style={{ borderColor: '#E2E8F0' }} />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold mb-2" style={{ color: '#0B1220' }}>Company Email</label>
+                  <input type="email" placeholder="you@company.com" value={signupData.email} onChange={(e) => setSignupData({...signupData, email: e.target.value})} className="w-full px-4 py-3 rounded border outline-none" style={{ borderColor: '#E2E8F0' }} />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold mb-2" style={{ color: '#0B1220' }}>Company Name</label>
+                  <input type="text" placeholder="Your Company" value={signupData.company} onChange={(e) => setSignupData({...signupData, company: e.target.value})} className="w-full px-4 py-3 rounded border outline-none" style={{ borderColor: '#E2E8F0' }} />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold mb-2" style={{ color: '#0B1220' }}>Password</label>
+                  <input type="password" placeholder="Create password" value={signupData.password} onChange={(e) => setSignupData({...signupData, password: e.target.value})} className="w-full px-4 py-3 rounded border outline-none" style={{ borderColor: '#E2E8F0' }} />
+                </div>
+                <label className="flex items-start gap-2 text-sm" style={{ color: '#475569' }}>
+                  <input type="checkbox" className="mt-1" required />
+                  <span>I agree to the Terms and Privacy Policy</span>
+                </label>
+                <button type="submit" className="w-full py-3 rounded font-semibold text-white" style={{ backgroundColor: '#635BFF' }}>Create Account</button>
+                <p className="text-center text-sm" style={{ color: '#475569' }}>Already have an account? <button type="button" onClick={() => setCurrentPage('login')} className="font-semibold" style={{ color: '#635BFF' }}>Log in</button></p>
+              </form>
+            </div>
+          </div>
+        </section>
       )}
 
       <footer className="py-16 text-white" style={{ backgroundColor: '#071A2E' }}>
