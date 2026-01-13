@@ -1,70 +1,403 @@
-# Getting Started with Create React App
+# Axigon AI Backend
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+Node.js serverless backend for Axigon AI platform, optimized for Vercel deployment with MongoDB Atlas.
 
-## Available Scripts
+## 🚀 Features
 
-In the project directory, you can run:
+- ✅ **Authentication API** - JWT-based user authentication (signup, login)
+- ✅ **User Management** - User profiles and account management
+- ✅ **AI Agents Marketplace** - Full CRUD operations for AI agents
+- ✅ **MongoDB Integration** - Optimized for serverless with connection pooling
+- ✅ **Vercel-Ready** - Serverless functions with zero configuration
+- ✅ **AWS-Compatible** - MongoDB can be hosted on AWS or Atlas
 
-### `npm start`
+## 📁 Project Structure
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+```
+axigon-backend/
+├── api/                        # Vercel serverless functions
+│   ├── auth/
+│   │   ├── signup.js          # POST /api/auth/signup
+│   │   └── login.js           # POST /api/auth/login
+│   ├── users/
+│   │   └── profile.js         # GET/PUT /api/users/profile
+│   └── agents/
+│       ├── index.js           # GET/POST /api/agents
+│       └── [id].js            # GET/PUT/DELETE /api/agents/:id
+├── lib/
+│   ├── db.js                  # Database connection with pooling
+│   └── auth.js                # JWT utilities and middleware
+├── models/
+│   ├── User.js                # User model and operations
+│   └── Agent.js               # Agent model and operations
+├── scripts/
+│   └── seed.js                # Database seeding script
+├── package.json
+├── vercel.json                # Vercel configuration
+└── .env.example               # Environment variables template
+```
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+## 🛠️ Setup Instructions
 
-### `npm test`
+### 1. MongoDB Atlas Setup
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+1. Create account at [MongoDB Atlas](https://www.mongodb.com/cloud/atlas)
+2. Create a new cluster (M0 Free tier is fine for development)
+3. Create a database user with password
+4. Whitelist your IP address (or use 0.0.0.0/0 for development)
+5. Get your connection string (looks like: `mongodb+srv://username:password@cluster.mongodb.net/`)
 
-### `npm run build`
+### 2. Local Development Setup
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+1. **Copy environment variables:**
+   ```bash
+   cp .env.example .env
+   ```
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+2. **Update `.env` file:**
+   ```env
+   MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/axigon?retryWrites=true&w=majority
+   JWT_SECRET=your-super-secret-jwt-key-change-this
+   JWT_EXPIRES_IN=7d
+   NODE_ENV=development
+   ```
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+3. **Install dependencies:**
+   ```bash
+   npm install
+   ```
 
-### `npm run eject`
+4. **Seed the database (optional):**
+   ```bash
+   node scripts/seed.js
+   ```
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+5. **Run locally with Vercel CLI:**
+   ```bash
+   npm install -g vercel
+   vercel dev
+   ```
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+Your API will be available at `http://localhost:3000/api`
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+## 🚢 Deployment to Vercel
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+### Option 1: Vercel CLI
 
-## Learn More
+1. **Login to Vercel:**
+   ```bash
+   vercel login
+   ```
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+2. **Deploy:**
+   ```bash
+   vercel
+   ```
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+3. **Set environment variables:**
+   ```bash
+   vercel env add MONGODB_URI
+   vercel env add JWT_SECRET
+   ```
 
-### Code Splitting
+### Option 2: Vercel Dashboard
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+1. Import your Git repository in Vercel
+2. Add environment variables in Settings → Environment Variables:
+   - `MONGODB_URI`
+   - `JWT_SECRET`
+   - `JWT_EXPIRES_IN`
+3. Deploy!
 
-### Analyzing the Bundle Size
+## 📡 API Endpoints
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+### Authentication
 
-### Making a Progressive Web App
+#### Signup
+```http
+POST /api/auth/signup
+Content-Type: application/json
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
+{
+  "name": "John Doe",
+  "email": "john@company.com",
+  "company": "Acme Corp",
+  "password": "password123"
+}
 
-### Advanced Configuration
+Response:
+{
+  "message": "User created successfully",
+  "user": {
+    "id": "...",
+    "name": "John Doe",
+    "email": "john@company.com",
+    "company": "Acme Corp"
+  },
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+}
+```
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
+#### Login
+```http
+POST /api/auth/login
+Content-Type: application/json
 
-### Deployment
+{
+  "email": "john@company.com",
+  "password": "password123"
+}
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
+Response:
+{
+  "message": "Login successful",
+  "user": { ... },
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+}
+```
 
-### `npm run build` fails to minify
+### User Management
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+#### Get Profile
+```http
+GET /api/users/profile
+Authorization: Bearer <token>
+
+Response:
+{
+  "user": {
+    "id": "...",
+    "name": "John Doe",
+    "email": "john@company.com",
+    "company": "Acme Corp",
+    "createdAt": "2026-01-01T00:00:00.000Z"
+  }
+}
+```
+
+#### Update Profile
+```http
+PUT /api/users/profile
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "name": "John Smith",
+  "company": "New Company"
+}
+```
+
+### AI Agents Marketplace
+
+#### Get All Agents
+```http
+GET /api/agents
+
+Response:
+{
+  "agents": [
+    {
+      "_id": "...",
+      "name": "ContractAI",
+      "domain": "Legal Analysis",
+      "description": "Extract obligations, risks...",
+      "features": [...],
+      "pricing": { "model": "subscription", "price": 499 }
+    }
+  ],
+  "count": 6
+}
+```
+
+#### Search Agents
+```http
+GET /api/agents?search=legal
+GET /api/agents?domain=Legal Analysis
+```
+
+#### Get Single Agent
+```http
+GET /api/agents/[id]
+```
+
+#### Create Agent (Auth Required)
+```http
+POST /api/agents
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "name": "NewAgent",
+  "domain": "Custom Domain",
+  "description": "Agent description",
+  "features": ["feature1", "feature2"],
+  "pricing": { "model": "subscription", "price": 399 }
+}
+```
+
+#### Update Agent (Auth Required)
+```http
+PUT /api/agents/[id]
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "name": "Updated Name",
+  "pricing": { "model": "enterprise", "price": 999 }
+}
+```
+
+#### Delete Agent (Auth Required)
+```http
+DELETE /api/agents/[id]
+Authorization: Bearer <token>
+```
+
+## 🔗 Integrating with React Frontend
+
+Update your React app to use the backend:
+
+```javascript
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3000/api';
+
+// Signup
+const handleSignup = async (signupData) => {
+  const response = await fetch(`${API_URL}/auth/signup`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(signupData)
+  });
+  const data = await response.json();
+  localStorage.setItem('token', data.token);
+  return data;
+};
+
+// Login
+const handleLogin = async (loginData) => {
+  const response = await fetch(`${API_URL}/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(loginData)
+  });
+  const data = await response.json();
+  localStorage.setItem('token', data.token);
+  return data;
+};
+
+// Get agents
+const fetchAgents = async () => {
+  const response = await fetch(`${API_URL}/agents`);
+  return await response.json();
+};
+
+// Authenticated request
+const getProfile = async () => {
+  const token = localStorage.getItem('token');
+  const response = await fetch(`${API_URL}/users/profile`, {
+    headers: { 'Authorization': `Bearer ${token}` }
+  });
+  return await response.json();
+};
+```
+
+## 🏗️ Folder Structure for Full-Stack Project
+
+```
+axigon-website/
+├── frontend/              # Your React app
+│   ├── public/
+│   ├── src/
+│   │   └── App.js
+│   └── package.json
+│
+├── api/                   # Backend (from this repo)
+│   ├── auth/
+│   ├── users/
+│   └── agents/
+│
+├── lib/
+├── models/
+├── scripts/
+├── vercel.json
+└── package.json
+```
+
+## 🔒 Security Best Practices
+
+1. **JWT Secret**: Use a strong random string in production
+2. **Environment Variables**: Never commit `.env` files
+3. **CORS**: Update CORS settings for production domain
+4. **Rate Limiting**: Add rate limiting for authentication endpoints
+5. **Input Validation**: Already implemented basic validation
+6. **Password Hashing**: Using bcrypt with 10 rounds
+7. **MongoDB**: Use IP whitelist and strong passwords
+
+## 📊 Database Schema
+
+### Users Collection
+```javascript
+{
+  _id: ObjectId,
+  name: String,
+  email: String (unique),
+  company: String,
+  password: String (hashed),
+  createdAt: Date,
+  updatedAt: Date
+}
+```
+
+### Agents Collection
+```javascript
+{
+  _id: ObjectId,
+  name: String,
+  domain: String,
+  description: String,
+  features: [String],
+  pricing: {
+    model: String,
+    price: Number
+  },
+  capabilities: [String],
+  isActive: Boolean,
+  createdAt: Date,
+  updatedAt: Date
+}
+```
+
+## 🚀 Deployment Checklist
+
+- [ ] Set up MongoDB Atlas cluster
+- [ ] Create database user with password
+- [ ] Whitelist Vercel IPs or use 0.0.0.0/0
+- [ ] Set environment variables in Vercel
+- [ ] Deploy to Vercel
+- [ ] Test all endpoints
+- [ ] Update frontend API_URL to Vercel domain
+- [ ] Run seed script if needed
+- [ ] Configure custom domain (optional)
+
+## 🛟 Troubleshooting
+
+### Connection Timeout
+- Check MongoDB Atlas IP whitelist
+- Verify connection string is correct
+- Ensure database user has proper permissions
+
+### Authentication Errors
+- Verify JWT_SECRET is set correctly
+- Check token expiration time
+- Ensure Authorization header format: `Bearer <token>`
+
+### CORS Issues
+- Update CORS headers in API functions
+- Check Vercel domain is correctly set
+
+## 📝 License
+
+MIT
+
+## 👥 Support
+
+For issues or questions, contact: support@axigon.ai
