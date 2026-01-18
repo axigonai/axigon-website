@@ -12,11 +12,20 @@ const AxigonWebsite = () => {
   const [loginData, setLoginData] = useState({ email: '', password: '' });
   const [signupData, setSignupData] = useState({ name: '', email: '', company: '', password: '' });
   const [error, setError] = useState('');
-
+  const [loading, setLoading] = useState(false); 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 50);
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+    useEffect(() => {
+    const token = localStorage.getItem('axigon_token');
+    const savedUser = localStorage.getItem('axigon_user');
+    if (token && savedUser) {
+      setUser(JSON.parse(savedUser));
+      setIsLoggedIn(true);
+    }
   }, []);
 
   useEffect(() => {
@@ -28,37 +37,95 @@ const AxigonWebsite = () => {
     document.title = 'Axigon AI - Enterprise AI Solutions';
   }, []);
 
-  const handleLogin = (e) => {
+    const handleLogin = async (e) => {
     e.preventDefault();
     setError('');
+    setLoading(true);
+
     if (!loginData.email || !loginData.password) {
       setError('Please fill in all fields');
+      setLoading(false);
       return;
     }
-    const userData = { name: loginData.email.split('@')[0], email: loginData.email };
-    setUser(userData);
-    setIsLoggedIn(true);
-    setCurrentPage('dashboard');
+
+    try {
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(loginData),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Login failed');
+      }
+
+      localStorage.setItem('axigon_token', data.token);
+      localStorage.setItem('axigon_user', JSON.stringify(data.user));
+
+      setUser(data.user);
+      setIsLoggedIn(true);
+      setLoginData({ email: '', password: '' });
+      setCurrentPage('dashboard');
+
+    } catch (error) {
+      console.error('Login error:', error);
+      setError(error.message || 'Invalid credentials');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleSignup = (e) => {
-    e.preventDefault();
-    setError('');
-    if (!signupData.name || !signupData.email || !signupData.company || !signupData.password) {
-      setError('Please fill in all fields');
-      return;
+  const handleSignup = async (e) => {
+  e.preventDefault();
+  setError('');
+  setLoading(true);
+
+  if (!signupData.name || !signupData.email || !signupData.company || !signupData.password) {
+    setError('Please fill in all fields');
+    setLoading(false);
+    return;
+  }
+
+  if (signupData.password.length < 6) {
+    setError('Password must be at least 6 characters');
+    setLoading(false);
+    return;
+  }
+
+  try {
+    const response = await fetch('/api/auth/signup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(signupData),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || 'Signup failed');
     }
-    if (signupData.password.length < 6) {
-      setError('Password must be at least 6 characters');
-      return;
-    }
-    const userData = { name: signupData.name, email: signupData.email, company: signupData.company };
-    setUser(userData);
+
+    localStorage.setItem('axigon_token', data.token);
+    localStorage.setItem('axigon_user', JSON.stringify(data.user));
+
+    setUser(data.user);
     setIsLoggedIn(true);
+    setSignupData({ name: '', email: '', company: '', password: '' });
     setCurrentPage('dashboard');
-  };
+
+  } catch (error) {
+    console.error('Signup error:', error);
+    setError(error.message || 'Signup failed');
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleLogout = () => {
+    localStorage.removeItem('axigon_token');
+    localStorage.removeItem('axigon_user');
     setUser(null);
     setIsLoggedIn(false);
     setCurrentPage('logout-success');
@@ -498,6 +565,8 @@ const AxigonWebsite = () => {
                     onChange={(e) => setLoginData({...loginData, email: e.target.value})} 
                     className="w-full px-4 py-3 rounded border outline-none focus:border-indigo-500" 
                     style={{ borderColor: '#E2E8F0' }} 
+                    disabled={loading}  
+
                   />
                 </div>
                 <div>
@@ -509,6 +578,7 @@ const AxigonWebsite = () => {
                     onChange={(e) => setLoginData({...loginData, password: e.target.value})} 
                     className="w-full px-4 py-3 rounded border outline-none focus:border-indigo-500" 
                     style={{ borderColor: '#E2E8F0' }} 
+                    disabled={loading}
                   />
                 </div>
                 <div className="flex items-center justify-between text-sm">
@@ -521,9 +591,10 @@ const AxigonWebsite = () => {
                 <button 
                   type="submit" 
                   className="w-full py-3 rounded font-semibold text-white transition-all hover:opacity-90" 
-                  style={{ backgroundColor: '#635BFF' }}
+                  style={{ backgroundColor: '#635BFF', opacity: loading ? 0.7 : 1 }}
+                  disabled={loading}
                 >
-                  Log In
+                  {loading ? 'Logging in...' : 'Log In'}
                 </button>
                 <p className="text-center text-sm" style={{ color: '#475569' }}>
                   Don't have an account? <button type="button" onClick={() => setCurrentPage('signup')} className="font-semibold" style={{ color: '#635BFF' }}>Sign up</button>
@@ -551,6 +622,7 @@ const AxigonWebsite = () => {
                     onChange={(e) => setSignupData({...signupData, name: e.target.value})} 
                     className="w-full px-4 py-3 rounded border outline-none focus:border-indigo-500" 
                     style={{ borderColor: '#E2E8F0' }} 
+                    disabled={loading} 
                   />
                 </div>
                 <div>
@@ -562,6 +634,7 @@ const AxigonWebsite = () => {
                     onChange={(e) => setSignupData({...signupData, email: e.target.value})} 
                     className="w-full px-4 py-3 rounded border outline-none focus:border-indigo-500" 
                     style={{ borderColor: '#E2E8F0' }} 
+                    disabled={loading}  
                   />
                 </div>
                 <div>
@@ -573,6 +646,7 @@ const AxigonWebsite = () => {
                     onChange={(e) => setSignupData({...signupData, company: e.target.value})} 
                     className="w-full px-4 py-3 rounded border outline-none focus:border-indigo-500" 
                     style={{ borderColor: '#E2E8F0' }} 
+                    disabled={loading}
                   />
                 </div>
                 <div>
@@ -584,6 +658,7 @@ const AxigonWebsite = () => {
                     onChange={(e) => setSignupData({...signupData, password: e.target.value})} 
                     className="w-full px-4 py-3 rounded border outline-none focus:border-indigo-500" 
                     style={{ borderColor: '#E2E8F0' }} 
+                    disabled={loading}
                   />
                 </div>
                 <label className="flex items-start gap-2 text-sm" style={{ color: '#475569' }}>
@@ -593,9 +668,9 @@ const AxigonWebsite = () => {
                 <button 
                   type="submit" 
                   className="w-full py-3 rounded font-semibold text-white transition-all hover:opacity-90" 
-                  style={{ backgroundColor: '#635BFF' }}
+                  style={{ backgroundColor: '#635BFF', opacity: loading ? 0.7 : 1 }}
                 >
-                  Create Account
+                  {loading ? 'Creating Account...' : 'Create Account'}
                 </button>
                 <p className="text-center text-sm" style={{ color: '#475569' }}>
                   Already have an account? <button type="button" onClick={() => setCurrentPage('login')} className="font-semibold" style={{ color: '#635BFF' }}>Log in</button>

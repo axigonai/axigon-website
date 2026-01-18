@@ -1,6 +1,6 @@
-const { connectToDatabase } = require('../lib/db');
-const AgentModel = require('../models/Agent');
-const { verifyToken } = require('../lib/auth');
+const { connectToDatabase } = require('../../lib/db');
+const AgentModel = require('../../models/Agent');
+const { verifyToken } = require('../../lib/auth');
 
 module.exports = async (req, res) => {
   // Set CORS headers
