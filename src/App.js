@@ -392,7 +392,7 @@ const AxigonWebsite = () => {
                           <div className="w-32 h-32 rounded-full mx-auto mb-6" style={{ background: 'linear-gradient(135deg, #0A2540 0%, #635BFF 100%)' }}></div>
                           <h3 className="text-2xl font-bold mb-2" style={{ color: '#0B1220' }}>{m.name}</h3>
                           <p className="mb-6" style={{ color: '#475569' }}>{m.role}</p>
-                          <a href="#" className="inline-flex items-center gap-2" style={{ color: '#635BFF' }}><Linkedin size={20} /> LinkedIn</a>
+                          <button type="button" className="inline-flex items-center gap-2" style={{ color: '#635BFF', background: 'none', border: 'none', cursor: 'pointer' }}><Linkedin size={20} /> LinkedIn</button>
                         </div>
                       </div>
                     ))}
@@ -586,7 +586,7 @@ const AxigonWebsite = () => {
                     <input type="checkbox" className="rounded" />
                     Remember me
                   </label>
-                  <a href="#" style={{ color: '#635BFF' }}>Forgot password?</a>
+                  <button type="button" style={{ color: '#635BFF', background: 'none', border: 'none', padding: 0, cursor: 'pointer', textDecoration: 'underline' }}>Forgot password?</button>
                 </div>
                 <button 
                   type="submit" 
@@ -685,7 +685,7 @@ const AxigonWebsite = () => {
         <div className="max-w-7xl mx-auto px-6">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-10 mb-12">
             {[{ h: 'Company', l: ['About', 'Careers', 'Press'] }, { h: 'Solutions', l: ['AI Agents', 'Consulting'] }, { h: 'Resources', l: ['Blog', 'Case Studies'] }, { h: 'Legal', l: ['Privacy', 'Terms'] }].map((c, i) => (
-              <div key={i}><h4 className="text-lg font-bold mb-6">{c.h}</h4><ul className="space-y-3" style={{ color: '#CBD5E1' }}>{c.l.map((link, j) => <li key={j}><a href="#">{link}</a></li>)}</ul></div>
+              <div key={i}><h4 className="text-lg font-bold mb-6">{c.h}</h4><ul className="space-y-3" style={{ color: '#CBD5E1' }}>{c.l.map((link, j) => <li key={j}><button type="button" style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'inherit' }}>{link}</button></li>)}</ul></div>
             ))}
           </div>
           <div className="pt-8 flex items-center justify-between" style={{ borderTop: '1px solid #1E293B' }}>
