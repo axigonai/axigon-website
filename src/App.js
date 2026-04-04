@@ -151,7 +151,7 @@ const AxigonWebsite = () => {
     { name: 'SupplyChainAI', domain: 'Supply Chain', desc: 'Optimize inventory levels and predict disruptions' }
   ];
 
-  const partners = ['RippleSoft', 'TradeSoft', 'People TECH'];
+  const partners = ['RippleSoft', 'TradeSoft', 'PeopleTech'];
 
   return (
     <div style={{ fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif' }}>
