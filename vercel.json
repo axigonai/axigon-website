@@ -3,11 +3,6 @@
   "buildCommand": "react-scripts build",
   "outputDirectory": "build",
   "rewrites": [
-    { "source": "/api/auth/signup", "destination": "/api/auth/signup.js" },
-    { "source": "/api/auth/login", "destination": "/api/auth/login.js" },
-    { "source": "/api/users/profile", "destination": "/api/users/profile.js" },
-    { "source": "/api/agents", "destination": "/api/agents/index.js" },
-    { "source": "/api/agents/:path*", "destination": "/api/agents/single.js" },
-    { "source": "/(.*)", "destination": "/index.html" }
+    { "source": "/((?!api/).*)", "destination": "/index.html" }
   ]
 }
