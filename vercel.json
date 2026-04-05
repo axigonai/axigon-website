@@ -1,24 +1,10 @@
 {
-  "version": 2,
-  "builds": [
-    {
-      "src": "package.json",
-      "use": "@vercel/static-build",
-      "config": {
-        "distDir": "build"
-      }
-    },
-    {
-      "src": "api/**/*.js",
-      "use": "@vercel/node"
-    }
-  ],
-  "routes": [
-    { "src": "/api/auth/signup", "dest": "/api/auth/signup.js" },
-    { "src": "/api/auth/login", "dest": "/api/auth/login.js" },
-    { "src": "/api/users/profile", "dest": "/api/users/profile.js" },
-    { "src": "/api/agents", "dest": "/api/agents/index.js" },
-    { "src": "/api/agents/(.*)", "dest": "/api/agents/single.js" },
-    { "src": "/(.*)", "dest": "/index.html" }
+  "rewrites": [
+    { "source": "/api/auth/signup", "destination": "/api/auth/signup.js" },
+    { "source": "/api/auth/login", "destination": "/api/auth/login.js" },
+    { "source": "/api/users/profile", "destination": "/api/users/profile.js" },
+    { "source": "/api/agents", "destination": "/api/agents/index.js" },
+    { "source": "/api/agents/(.*)", "destination": "/api/agents/single.js" },
+    { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
