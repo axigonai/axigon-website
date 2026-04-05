@@ -12,21 +12,39 @@ const AxigonWebsite = () => {
   const [loginData, setLoginData] = useState({ email: '', password: '' });
   const [signupData, setSignupData] = useState({ name: '', email: '', company: '', password: '' });
   const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false); 
+  const [loading, setLoading] = useState(false);
+  const [showDemoModal, setShowDemoModal] = useState(false);
+  const [scrollToOfferings, setScrollToOfferings] = useState(false);
+  const [demoForm, setDemoForm] = useState({ name: '', email: '', phone: '', company: '', useCase: '' });
+
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 50);
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-    useEffect(() => {
-    const token = localStorage.getItem('axigon_token');
-    const savedUser = localStorage.getItem('axigon_user');
-    if (token && savedUser) {
-      setUser(JSON.parse(savedUser));
-      setIsLoggedIn(true);
-    }
+  useEffect(() => {
+    fetch('/api/auth/me', { credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data?.user) {
+          setUser(data.user);
+          setIsLoggedIn(true);
+        }
+      })
+      .catch(() => {});
   }, []);
+
+  useEffect(() => {
+    if (scrollToOfferings && currentPage === 'company') {
+      const timer = setTimeout(() => {
+        const el = document.getElementById('offerings-section');
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        setScrollToOfferings(false);
+      }, 80);
+      return () => clearTimeout(timer);
+    }
+  }, [scrollToOfferings, currentPage]);
 
   useEffect(() => {
     const link = document.querySelector("link[rel*='icon']") || document.createElement('link');
@@ -37,7 +55,7 @@ const AxigonWebsite = () => {
     document.title = 'Axigon AI - Enterprise AI Solutions';
   }, []);
 
-    const handleLogin = async (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
     setError('');
     setLoading(true);
@@ -52,6 +70,7 @@ const AxigonWebsite = () => {
       const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify(loginData),
       });
 
@@ -60,9 +79,6 @@ const AxigonWebsite = () => {
       if (!response.ok) {
         throw new Error(data.error || 'Login failed');
       }
-
-      localStorage.setItem('axigon_token', data.token);
-      localStorage.setItem('axigon_user', JSON.stringify(data.user));
 
       setUser(data.user);
       setIsLoggedIn(true);
@@ -78,57 +94,69 @@ const AxigonWebsite = () => {
   };
 
   const handleSignup = async (e) => {
-  e.preventDefault();
-  setError('');
-  setLoading(true);
+    e.preventDefault();
+    setError('');
+    setLoading(true);
 
-  if (!signupData.name || !signupData.email || !signupData.company || !signupData.password) {
-    setError('Please fill in all fields');
-    setLoading(false);
-    return;
-  }
-
-  if (signupData.password.length < 6) {
-    setError('Password must be at least 6 characters');
-    setLoading(false);
-    return;
-  }
-
-  try {
-    const response = await fetch('/api/auth/signup', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(signupData),
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      throw new Error(data.error || 'Signup failed');
+    if (!signupData.name || !signupData.email || !signupData.company || !signupData.password) {
+      setError('Please fill in all fields');
+      setLoading(false);
+      return;
     }
 
-    localStorage.setItem('axigon_token', data.token);
-    localStorage.setItem('axigon_user', JSON.stringify(data.user));
+    if (signupData.password.length < 6) {
+      setError('Password must be at least 6 characters');
+      setLoading(false);
+      return;
+    }
 
-    setUser(data.user);
-    setIsLoggedIn(true);
-    setSignupData({ name: '', email: '', company: '', password: '' });
-    setCurrentPage('dashboard');
+    try {
+      const response = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(signupData),
+      });
 
-  } catch (error) {
-    console.error('Signup error:', error);
-    setError(error.message || 'Signup failed');
-  } finally {
-    setLoading(false);
-  }
-};
+      const data = await response.json();
 
-  const handleLogout = () => {
-    localStorage.removeItem('axigon_token');
-    localStorage.removeItem('axigon_user');
+      if (!response.ok) {
+        throw new Error(data.error || 'Signup failed');
+      }
+
+      setSignupData({ name: '', email: '', company: '', password: '' });
+      setCurrentPage('login');
+
+    } catch (error) {
+      console.error('Signup error:', error);
+      setError(error.message || 'Signup failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
     setUser(null);
     setIsLoggedIn(false);
-    setCurrentPage('logout-success');
+    setCurrentPage('company');
+  };
+
+  const handleCompanyNav = () => {
+    if (currentPage === 'company') {
+      const el = document.getElementById('offerings-section');
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } else {
+      setCurrentPage('company');
+      setScrollToOfferings(true);
+    }
+  };
+
+  const handleDemoSubmit = (e) => {
+    e.preventDefault();
+    console.log('Demo request submitted:', demoForm);
+    setDemoForm({ name: '', email: '', phone: '', company: '', useCase: '' });
+    setShowDemoModal(false);
   };
 
   const solutions = {
@@ -153,24 +181,149 @@ const AxigonWebsite = () => {
 
   const partners = ['RippleSoft', 'TradeSoft', 'PeopleTech'];
 
+  // ─── Shared style helpers ────────────────────────────────────────────────────
+  const btnPrimary = {
+    background: 'linear-gradient(135deg, #8B5CF6 0%, #6366F1 100%)',
+    color: 'white',
+    border: 'none',
+    borderRadius: '9px',
+    fontWeight: 700,
+    cursor: 'pointer',
+    transition: 'all 0.2s ease',
+    boxShadow: '0 0 24px rgba(139,92,246,0.35)',
+  };
+  const btnPrimaryHover = (e) => {
+    e.currentTarget.style.transform = 'translateY(-2px)';
+    e.currentTarget.style.boxShadow = '0 0 40px rgba(139,92,246,0.6)';
+  };
+  const btnPrimaryLeave = (e) => {
+    e.currentTarget.style.transform = 'translateY(0)';
+    e.currentTarget.style.boxShadow = '0 0 24px rgba(139,92,246,0.35)';
+  };
+
+  const btnGhost = {
+    background: 'rgba(255,255,255,0.05)',
+    color: '#F1F5F9',
+    border: '1px solid rgba(255,255,255,0.18)',
+    borderRadius: '9px',
+    fontWeight: 700,
+    cursor: 'pointer',
+    transition: 'all 0.2s ease',
+  };
+  const btnGhostHover = (e) => {
+    e.currentTarget.style.background = 'rgba(255,255,255,0.1)';
+    e.currentTarget.style.borderColor = 'rgba(255,255,255,0.35)';
+    e.currentTarget.style.transform = 'translateY(-2px)';
+  };
+  const btnGhostLeave = (e) => {
+    e.currentTarget.style.background = 'rgba(255,255,255,0.05)';
+    e.currentTarget.style.borderColor = 'rgba(255,255,255,0.18)';
+    e.currentTarget.style.transform = 'translateY(0)';
+  };
+
+  const darkCard = {
+    backgroundColor: '#0F1A2E',
+    border: '1px solid #1E2D45',
+    borderRadius: '14px',
+    transition: 'all 0.22s ease',
+  };
+  const darkCardHover = (e) => {
+    e.currentTarget.style.borderColor = 'rgba(139,92,246,0.6)';
+    e.currentTarget.style.transform = 'translateY(-4px)';
+    e.currentTarget.style.boxShadow = '0 20px 48px rgba(0,0,0,0.5), 0 0 0 1px rgba(139,92,246,0.2)';
+  };
+  const darkCardLeave = (e) => {
+    e.currentTarget.style.borderColor = '#1E2D45';
+    e.currentTarget.style.transform = 'translateY(0)';
+    e.currentTarget.style.boxShadow = 'none';
+  };
+
+  const lightCard = {
+    backgroundColor: '#FFFFFF',
+    border: '1px solid #E2E8F0',
+    borderRadius: '14px',
+    boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
+    transition: 'all 0.22s ease',
+  };
+  const lightCardHover = (e) => {
+    e.currentTarget.style.transform = 'translateY(-3px)';
+    e.currentTarget.style.boxShadow = '0 12px 32px rgba(0,0,0,0.12)';
+    e.currentTarget.style.borderColor = 'rgba(139,92,246,0.25)';
+  };
+  const lightCardLeave = (e) => {
+    e.currentTarget.style.transform = 'translateY(0)';
+    e.currentTarget.style.boxShadow = '0 1px 4px rgba(0,0,0,0.06)';
+    e.currentTarget.style.borderColor = '#E2E8F0';
+  };
+
+  const inputStyle = {
+    width: '100%',
+    padding: '12px 16px',
+    borderRadius: '8px',
+    border: '1px solid #1E2D45',
+    backgroundColor: '#131E30',
+    color: '#F1F5F9',
+    fontSize: '15px',
+    outline: 'none',
+    transition: 'border-color 0.2s',
+    boxSizing: 'border-box',
+    fontFamily: 'inherit',
+  };
+
+  const gradientText = {
+    background: 'linear-gradient(135deg, #8B5CF6, #22D3EE)',
+    WebkitBackgroundClip: 'text',
+    WebkitTextFillColor: 'transparent',
+  };
+
+  const sectionLabel = (color = '#8B5CF6') => ({
+    color,
+    fontSize: '12px',
+    fontWeight: 700,
+    letterSpacing: '0.12em',
+    textTransform: 'uppercase',
+    marginBottom: '12px',
+  });
+
+  const Checkmark = () => (
+    <div style={{ width: '20px', height: '20px', borderRadius: '50%', background: 'linear-gradient(135deg, #8B5CF6, #6366F1)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+      <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
+        <path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    </div>
+  );
+
+  // ─── Render ──────────────────────────────────────────────────────────────────
   return (
-    <div style={{ fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif' }}>
-      <nav className="fixed w-full z-50 transition" style={{ backgroundColor: scrolled ? '#0A2540' : '#071A2E' }}>
-        <div className="max-w-7xl mx-auto px-6 py-5 flex items-center justify-between">
-          <button onClick={() => setCurrentPage('company')} className="text-2xl font-bold text-white">
-            Axigon<span style={{ color: '#635BFF' }}>AI</span>
+    <div style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif', backgroundColor: '#06080F' }}>
+
+      {/* ── NAV ── */}
+      <nav className="fixed w-full z-50" style={{
+        backgroundColor: scrolled ? 'rgba(6,8,15,0.88)' : 'rgba(6,8,15,0.3)',
+        backdropFilter: 'blur(20px)',
+        WebkitBackdropFilter: 'blur(20px)',
+        borderBottom: scrolled ? '1px solid #1E2D45' : '1px solid transparent',
+        transition: 'all 0.35s ease',
+      }}>
+        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+          <button onClick={() => { setCurrentPage('company'); window.scrollTo({ top: 0, behavior: 'smooth' }); }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '22px', fontWeight: 800, color: '#F1F5F9', letterSpacing: '-0.01em' }}>
+            Axigon<span style={gradientText}>AI</span>
           </button>
-          <div className="flex gap-4">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             {isLoggedIn ? (
               <>
-                <span className="text-white text-sm">Hi, {user.name}!</span>
-                <button onClick={handleLogout} className="px-6 py-2.5 rounded text-sm text-white" style={{ backgroundColor: '#635BFF' }}>Logout</button>
+                <span style={{ color: '#94A3B8', fontSize: '14px', marginRight: '4px' }}>Hi, {user.name}!</span>
+                <button onClick={handleLogout} style={{ ...btnPrimary, padding: '9px 20px', fontSize: '14px' }} onMouseEnter={btnPrimaryHover} onMouseLeave={btnPrimaryLeave}>
+                  Logout
+                </button>
               </>
             ) : (
               <>
-                <button className="px-6 py-2.5 rounded text-sm text-white" style={{ backgroundColor: '#635BFF' }}>Request Demo</button>
-                <button className="px-6 py-2.5 rounded text-sm border-2 border-white text-white flex items-center gap-2">
-                  <Play size={16} /> Watch Video
+                <button onClick={() => setShowDemoModal(true)} style={{ ...btnPrimary, padding: '9px 20px', fontSize: '14px' }} onMouseEnter={btnPrimaryHover} onMouseLeave={btnPrimaryLeave}>
+                  Request Demo
+                </button>
+                <button style={{ ...btnGhost, padding: '9px 20px', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '7px' }} onMouseEnter={btnGhostHover} onMouseLeave={btnGhostLeave}>
+                  <Play size={13} /> Watch Video
                 </button>
               </>
             )}
@@ -178,169 +331,203 @@ const AxigonWebsite = () => {
         </div>
       </nav>
 
+      {/* ════════════════════════════════════════════
+          COMPANY PAGE
+      ════════════════════════════════════════════ */}
       {currentPage === 'company' && (
         <>
-          <section className="relative min-h-screen flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #071A2E 0%, #0A2540 50%, #0B2D5B 100%)' }}>
-            <div className="relative z-10 text-center px-6 max-w-5xl">
-              <h1 className="text-5xl md:text-6xl font-bold mb-6 text-white">Specialized AI agents built<br />for real-world impact</h1>
-              <p className="text-xl mb-10 text-gray-300">Masters of one domain, not generalist AI. Purpose-built agents that solve specific enterprise challenges.</p>
-              <div className="flex gap-4 justify-center">
-                <button onClick={() => setCurrentPage('company')} className="px-8 py-4 rounded font-semibold bg-white text-slate-900">Company</button>
-                <button onClick={() => setCurrentPage('marketplace')} className="border-2 px-8 py-4 rounded font-semibold border-white text-white">Marketplace</button>
+          {/* Hero */}
+          <section style={{ position: 'relative', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', backgroundColor: '#06080F' }}>
+            {/* Purple glow */}
+            <div style={{ position: 'absolute', width: '900px', height: '700px', borderRadius: '50%', background: 'radial-gradient(ellipse, rgba(139,92,246,0.16) 0%, transparent 70%)', top: '-200px', left: '50%', transform: 'translateX(-50%)', pointerEvents: 'none' }} />
+            {/* Cyan glow bottom-right */}
+            <div style={{ position: 'absolute', width: '400px', height: '400px', borderRadius: '50%', background: 'radial-gradient(ellipse, rgba(34,211,238,0.07) 0%, transparent 70%)', bottom: '5%', right: '5%', pointerEvents: 'none' }} />
+            {/* Grid texture */}
+            <div style={{ position: 'absolute', inset: 0, backgroundImage: 'linear-gradient(rgba(139,92,246,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(139,92,246,0.04) 1px, transparent 1px)', backgroundSize: '64px 64px', pointerEvents: 'none' }} />
+
+            <div style={{ position: 'relative', zIndex: 10, textAlign: 'center', padding: '0 24px', maxWidth: '900px', margin: '0 auto' }}>
+              {/* Badge */}
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', backgroundColor: 'rgba(139,92,246,0.1)', border: '1px solid rgba(139,92,246,0.28)', padding: '6px 16px', borderRadius: '999px', marginBottom: '36px' }}>
+                <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#8B5CF6', boxShadow: '0 0 8px #8B5CF6' }} />
+                <span style={{ color: '#A78BFA', fontSize: '12px', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase' }}>Enterprise AI Platform</span>
+              </div>
+
+              <h1 style={{ fontSize: 'clamp(42px, 6vw, 72px)', fontWeight: 800, lineHeight: 1.1, letterSpacing: '-0.025em', marginBottom: '24px', background: 'linear-gradient(to bottom, #FFFFFF 20%, #A78BFA 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+                Specialized AI agents<br />built for real-world impact
+              </h1>
+              <p style={{ fontSize: '19px', color: '#94A3B8', maxWidth: '560px', margin: '0 auto 44px', lineHeight: 1.7 }}>
+                Masters of one domain, not generalist AI. Purpose-built agents that solve specific enterprise challenges.
+              </p>
+              <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
+                <button onClick={handleCompanyNav} style={{ ...btnPrimary, padding: '14px 32px', fontSize: '15px' }} onMouseEnter={btnPrimaryHover} onMouseLeave={btnPrimaryLeave}>
+                  Company
+                </button>
+                <button onClick={() => setCurrentPage('marketplace')} style={{ ...btnGhost, padding: '14px 32px', fontSize: '15px' }} onMouseEnter={btnGhostHover} onMouseLeave={btnGhostLeave}>
+                  Marketplace
+                </button>
               </div>
             </div>
           </section>
 
-          <section className="py-16" style={{ backgroundColor: '#F7FAFF' }}>
+          {/* Trusted by */}
+          <div style={{ backgroundColor: '#080C16', borderTop: '1px solid #1E2D45', borderBottom: '1px solid #1E2D45', padding: '36px 0' }}>
             <div className="max-w-7xl mx-auto px-6">
-              <p className="text-center text-sm uppercase mb-10 text-gray-500">Trusted by Enterprise Leaders</p>
-              <div className="grid grid-cols-3 md:grid-cols-6 gap-8">
-                {partners.map((p, i) => <div key={i} className="text-center opacity-30"><div className="text-xl font-bold text-gray-700">{p}</div></div>)}
+              <p style={{ textAlign: 'center', marginBottom: '24px', ...sectionLabel('#4B6279') }}>Trusted by Enterprise Leaders</p>
+              <div style={{ display: 'flex', justifyContent: 'center', gap: '64px', flexWrap: 'wrap' }}>
+                {partners.map((p, i) => (
+                  <span key={i} style={{ color: '#2D3F55', fontSize: '17px', fontWeight: 700, letterSpacing: '-0.01em', transition: 'color 0.2s', cursor: 'default' }}
+                    onMouseEnter={e => e.currentTarget.style.color = '#94A3B8'}
+                    onMouseLeave={e => e.currentTarget.style.color = '#2D3F55'}
+                  >{p}</span>
+                ))}
               </div>
             </div>
-          </section>
+          </div>
 
-          <section className="py-24 bg-white">
+          {/* Why Axigon */}
+          <section style={{ backgroundColor: '#F8FAFC', padding: '96px 0' }}>
             <div className="max-w-7xl mx-auto px-6">
-              <h2 className="text-4xl font-bold text-center mb-16" style={{ color: '#0B1220' }}>Why Axigon AI</h2>
-              <div className="max-w-5xl mx-auto p-8 rounded-lg border-2" style={{ backgroundColor: '#0A2540', borderColor: '#635BFF' }}>
-                <div className="grid md:grid-cols-2 gap-12">
-                  <div>
-                    <h3 className="text-xl font-bold mb-6" style={{ color: '#999' }}>General-Purpose AI</h3>
-                    <div className="space-y-4">
+              <div style={{ textAlign: 'center', marginBottom: '56px' }}>
+                <p style={sectionLabel('#8B5CF6')}>The Axigon Difference</p>
+                <h2 style={{ fontSize: '40px', fontWeight: 800, color: '#0F172A', letterSpacing: '-0.02em' }}>Why Axigon AI</h2>
+              </div>
+              <div className="max-w-4xl mx-auto" style={{ borderRadius: '18px', overflow: 'hidden', border: '1px solid #1E2D45', boxShadow: '0 40px 80px rgba(0,0,0,0.22)' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', backgroundColor: '#0C1221' }}>
+                  {/* Left — generic AI */}
+                  <div style={{ padding: '48px', borderRight: '1px solid #1E2D45' }}>
+                    <p style={{ ...sectionLabel('#4B6279'), marginBottom: '24px' }}>General-Purpose AI</p>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
                       {['Generic LLM', 'One-size-fits-all', 'Probabilistic answers', 'Chat responses'].map((t, i) => (
-                        <div key={i} className="flex gap-3"><div className="w-2 h-2 rounded-full mt-2" style={{ backgroundColor: '#666' }}></div><div className="font-semibold" style={{ color: '#999' }}>{t}</div></div>
+                        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                          <div style={{ width: '20px', height: '20px', borderRadius: '50%', backgroundColor: '#1E2D45', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                            <div style={{ width: '8px', height: '2px', backgroundColor: '#4B6279', borderRadius: '1px' }} />
+                          </div>
+                          <span style={{ color: '#4B6279', fontWeight: 500, fontSize: '15px' }}>{t}</span>
+                        </div>
                       ))}
                     </div>
                   </div>
-                  <div>
-                    <div className="absolute -top-4 -right-4 px-3 py-1 text-xs font-bold" style={{ backgroundColor: '#635BFF', color: 'white' }}>AXIGON APPROACH</div>
-                    <h3 className="text-xl font-bold mb-6 text-white">Axigon Specialized Agents</h3>
-                    <div className="space-y-4">
+                  {/* Right — Axigon */}
+                  <div style={{ padding: '48px', position: 'relative', background: 'linear-gradient(135deg, rgba(139,92,246,0.1) 0%, rgba(99,102,241,0.04) 100%)' }}>
+                    <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '3px', background: 'linear-gradient(90deg, #8B5CF6, #22D3EE)' }} />
+                    <div style={{ position: 'absolute', top: '14px', right: '14px', backgroundColor: '#8B5CF6', color: 'white', fontSize: '10px', fontWeight: 800, letterSpacing: '0.08em', padding: '3px 10px', borderRadius: '4px' }}>AXIGON</div>
+                    <p style={{ ...sectionLabel('#A78BFA'), marginBottom: '24px', marginTop: '8px' }}>Axigon Specialized Agents</p>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
                       {['Domain-trained agents', 'Purpose-built', 'Deterministic workflows', 'Actionable outputs'].map((t, i) => (
-                        <div key={i} className="flex gap-3"><div className="w-2 h-2 rounded-full mt-2" style={{ backgroundColor: '#635BFF' }}></div><div className="font-semibold text-white">{t}</div></div>
+                        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                          <Checkmark />
+                          <span style={{ color: '#F1F5F9', fontWeight: 600, fontSize: '15px' }}>{t}</span>
+                        </div>
                       ))}
                     </div>
                   </div>
                 </div>
               </div>
-              <div className="mt-12 text-center">
-                <p className="text-xl font-bold" style={{ color: '#0B1220' }}>We don't build AI that knows a little about everything.<br />We build AI that masters one thing—and delivers results.</p>
+              <div style={{ marginTop: '48px', textAlign: 'center' }}>
+                <p style={{ fontSize: '20px', fontWeight: 700, color: '#0F172A', lineHeight: 1.65 }}>
+                  We don't build AI that knows a little about everything.<br />
+                  <span style={{ color: '#8B5CF6' }}>We build AI that masters one thing—and delivers results.</span>
+                </p>
               </div>
             </div>
           </section>
 
-          <section className="py-24" style={{ backgroundColor: '#F7FAFF' }}>
+          {/* Who It's Built For */}
+          <section style={{ backgroundColor: '#06080F', padding: '96px 0' }}>
             <div className="max-w-7xl mx-auto px-6">
-              <h2 className="text-4xl font-bold text-center mb-4" style={{ color: '#0B1220' }}>Who It's Built For</h2>
-              <p className="text-center text-lg mb-16 max-w-3xl mx-auto" style={{ color: '#475569' }}>
-                <strong>Built for AI Precision.</strong> Specialized agents designed for your team's exact workflow
-              </p>
-              
-              <div className="grid md:grid-cols-4 gap-6">
+              <div style={{ textAlign: 'center', marginBottom: '56px' }}>
+                <p style={sectionLabel('#22D3EE')}>Target Verticals</p>
+                <h2 style={{ fontSize: '40px', fontWeight: 800, color: '#F1F5F9', letterSpacing: '-0.02em', marginBottom: '16px' }}>Who It's Built For</h2>
+                <p style={{ color: '#94A3B8', fontSize: '18px', maxWidth: '520px', margin: '0 auto', lineHeight: 1.65 }}>
+                  Specialized agents designed for your team's exact workflow
+                </p>
+              </div>
+              <div className="grid md:grid-cols-4 gap-5">
                 {[
-                  { 
-                    title: 'Engineering Teams', 
-                    pain: 'Engineering teams lose productivity switching between tools and models for coding, debugging, and architectural decisions.',
-                    solution: 'Axigon automatically routes tasks to specialized engineering agents, delivering optimal results without context switching.'
-                  },
-                  { 
-                    title: 'Enterprise IT & Cloud', 
-                    pain: 'IT and cloud teams struggle with fragmented insights across security, cost optimization, and infrastructure reliability.',
-                    solution: 'Axigon uses intent-aware agents to unify cloud, security, and reliability intelligence into a single decision layer.'
-                  },
-                  { 
-                    title: 'Finance & Risk', 
-                    pain: 'Finance teams rely on delayed reports and manual analysis to assess risk and opportunity.',
-                    solution: 'Axigon deploys finance-focused agents that continuously analyze data, stress-test assumptions, and produce decision-ready insights.'
-                  },
-                  { 
-                    title: 'Operations & Strategy', 
-                    pain: 'Strategic decisions slow down due to conflicting inputs and incomplete analysis.',
-                    solution: 'Axigon synthesizes multiple expert agents into one clear, confidence-driven recommendation.'
-                  }
+                  { title: 'Engineering Teams', icon: '⚙️', pain: 'Engineering teams lose productivity switching between tools and models for coding, debugging, and architectural decisions.', solution: 'Axigon automatically routes tasks to specialized engineering agents, delivering optimal results without context switching.' },
+                  { title: 'Enterprise IT & Cloud', icon: '☁️', pain: 'IT and cloud teams struggle with fragmented insights across security, cost optimization, and infrastructure reliability.', solution: 'Axigon uses intent-aware agents to unify cloud, security, and reliability intelligence into a single decision layer.' },
+                  { title: 'Finance & Risk', icon: '📊', pain: 'Finance teams rely on delayed reports and manual analysis to assess risk and opportunity.', solution: 'Axigon deploys finance-focused agents that continuously analyze data, stress-test assumptions, and produce decision-ready insights.' },
+                  { title: 'Operations & Strategy', icon: '🎯', pain: 'Strategic decisions slow down due to conflicting inputs and incomplete analysis.', solution: 'Axigon synthesizes multiple expert agents into one clear, confidence-driven recommendation.' }
                 ].map((card, i) => (
-                  <div key={i} className="bg-white p-6 rounded-lg border" style={{ borderColor: '#E2E8F0' }}>
-                    <h3 className="text-lg font-bold mb-4" style={{ color: '#0B1220' }}>{card.title}</h3>
-                    <p className="mb-3 text-sm" style={{ color: '#DC2626' }}>
-                      <strong>Pain:</strong> {card.pain}
+                  <div key={i} style={{ ...darkCard, padding: '28px', cursor: 'pointer', position: 'relative', overflow: 'hidden' }}
+                    onMouseEnter={darkCardHover} onMouseLeave={darkCardLeave}>
+                    <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '2px', background: 'linear-gradient(90deg, #8B5CF6, #22D3EE)', opacity: 0.7 }} />
+                    <div style={{ fontSize: '28px', marginBottom: '16px' }}>{card.icon}</div>
+                    <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#F1F5F9', marginBottom: '12px' }}>{card.title}</h3>
+                    <p style={{ fontSize: '13px', color: '#F87171', lineHeight: 1.65, marginBottom: '14px' }}>
+                      <span style={{ fontWeight: 700 }}>Challenge: </span>{card.pain}
                     </p>
-                    <div>
-                      <button 
-                        onClick={() => setExpandedCard(expandedCard === i ? null : i)}
-                        className="text-sm font-semibold"
-                        style={{ color: '#635BFF' }}
-                      >
-                        Solution: {expandedCard === i ? 'Hide' : 'Read more...'}
-                      </button>
-                      {expandedCard === i && (
-                        <p className="mt-3 text-sm" style={{ color: '#0B1220' }}>
-                          {card.solution}
-                        </p>
-                      )}
-                    </div>
+                    <button
+                      onClick={() => setExpandedCard(expandedCard === i ? null : i)}
+                      style={{ fontSize: '13px', fontWeight: 600, color: '#A78BFA', background: 'none', border: 'none', padding: 0, cursor: 'pointer', transition: 'color 0.2s' }}
+                      onMouseEnter={e => e.currentTarget.style.color = '#C4B5FD'}
+                      onMouseLeave={e => e.currentTarget.style.color = '#A78BFA'}
+                    >Solution {expandedCard === i ? '▲' : '▼'}</button>
+                    {expandedCard === i && (
+                      <p style={{ marginTop: '12px', fontSize: '13px', color: '#94A3B8', lineHeight: 1.65, borderTop: '1px solid #1E2D45', paddingTop: '12px' }}>{card.solution}</p>
+                    )}
                   </div>
                 ))}
               </div>
             </div>
           </section>
 
-          <section className="py-24 bg-white">
+          {/* Offerings */}
+          <section id="offerings-section" style={{ backgroundColor: '#080C16', padding: '96px 0', borderTop: '1px solid #1E2D45' }}>
             <div className="max-w-7xl mx-auto px-6">
-              <h2 className="text-4xl font-bold text-center mb-16" style={{ color: '#0B1220' }}>Our Offerings</h2>
-              <div className="max-w-5xl mx-auto p-10 rounded-lg" style={{ backgroundColor: '#0A2540' }}>
-                <div className="mb-10">
-                  <h4 className="text-2xl font-bold mb-4 text-center" style={{ color: '#635BFF' }}>Intent-Aware AI Router</h4>
-                  <p className="text-center mb-2" style={{ color: '#94A3B8', fontSize: '14px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                    (Invisible Aggregator)
-                  </p>
-                  <p className="text-lg mb-8 text-center max-w-3xl mx-auto" style={{ color: '#CBD5E1' }}>
+              <div style={{ textAlign: 'center', marginBottom: '56px' }}>
+                <p style={sectionLabel('#22D3EE')}>What We Build</p>
+                <h2 style={{ fontSize: '40px', fontWeight: 800, color: '#F1F5F9', letterSpacing: '-0.02em' }}>Our Offerings</h2>
+              </div>
+              <div className="max-w-5xl mx-auto" style={{ ...darkCard, padding: '48px', boxShadow: '0 40px 80px rgba(0,0,0,0.4)', overflow: 'hidden', position: 'relative' }}>
+                {/* Intent-Aware Router */}
+                <div style={{ textAlign: 'center', marginBottom: '40px' }}>
+                  <div style={{ display: 'inline-block', background: 'rgba(139,92,246,0.12)', border: '1px solid rgba(139,92,246,0.28)', borderRadius: '6px', padding: '5px 14px', marginBottom: '16px' }}>
+                    <span style={{ fontSize: '11px', fontWeight: 700, color: '#A78BFA', letterSpacing: '0.1em', textTransform: 'uppercase' }}>Invisible Aggregator</span>
+                  </div>
+                  <h4 style={{ fontSize: '28px', fontWeight: 800, ...gradientText, marginBottom: '12px' }}>Intent-Aware AI Router</h4>
+                  <p style={{ color: '#94A3B8', fontSize: '16px', maxWidth: '520px', margin: '0 auto', lineHeight: 1.65 }}>
                     User never chooses a model. The system detects intent and silently routes the task.
                   </p>
+                </div>
 
-                  <div className="grid md:grid-cols-5 gap-4 mb-8">
-                    {[
-                      { task: 'Legal reasoning', model: 'Claude' },
-                      { task: 'Code refactor', model: 'GPT-4' },
-                      { task: 'Market research', model: 'Perplexity' },
-                      { task: 'Math proof', model: 'Gemini' },
-                      { task: 'Creative copy', model: 'Mixtral' }
-                    ].map((item, i) => (
-                      <div key={i} className="text-center p-4 rounded" style={{ backgroundColor: 'rgba(99, 91, 255, 0.1)' }}>
-                        <div className="font-semibold mb-2 text-white text-sm">{item.task}</div>
-                        <div className="text-xs px-2 py-1 rounded inline-block" style={{ backgroundColor: '#635BFF', color: 'white' }}>
-                          {item.model}
-                        </div>
+                <div className="grid md:grid-cols-5 gap-3 mb-10">
+                  {[
+                    { task: 'Legal reasoning', model: 'Claude' },
+                    { task: 'Code refactor', model: 'GPT-4' },
+                    { task: 'Market research', model: 'Perplexity' },
+                    { task: 'Math proof', model: 'Gemini' },
+                    { task: 'Creative copy', model: 'Mixtral' }
+                  ].map((item, i) => (
+                    <div key={i} style={{ textAlign: 'center', padding: '16px 10px', borderRadius: '10px', backgroundColor: 'rgba(139,92,246,0.07)', border: '1px solid rgba(139,92,246,0.15)', transition: 'all 0.2s' }}
+                      onMouseEnter={e => { e.currentTarget.style.backgroundColor = 'rgba(139,92,246,0.15)'; e.currentTarget.style.borderColor = 'rgba(139,92,246,0.4)'; }}
+                      onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'rgba(139,92,246,0.07)'; e.currentTarget.style.borderColor = 'rgba(139,92,246,0.15)'; }}
+                    >
+                      <div style={{ fontWeight: 600, marginBottom: '10px', color: '#94A3B8', fontSize: '13px' }}>{item.task}</div>
+                      <div style={{ fontSize: '11px', padding: '4px 10px', borderRadius: '999px', display: 'inline-block', background: 'linear-gradient(135deg, #8B5CF6, #6366F1)', color: 'white', fontWeight: 700 }}>{item.model}</div>
+                    </div>
+                  ))}
+                </div>
+
+                <div style={{ marginBottom: '36px' }}>
+                  <h5 style={{ fontSize: '16px', fontWeight: 700, color: '#F1F5F9', marginBottom: '16px' }}>Why this wins</h5>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                    {['Zero friction', 'Feels like one super-intelligent AI', 'Models become replaceable commodities'].map((point, i) => (
+                      <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <Checkmark />
+                        <span style={{ color: '#CBD5E1', fontSize: '15px' }}>{point}</span>
                       </div>
                     ))}
                   </div>
-
-                  <div className="mb-8">
-                    <h4 className="text-xl font-bold mb-4 text-white">Why this wins</h4>
-                    <div className="space-y-3">
-                      {[
-                        'Zero friction',
-                        'Feels like one super-intelligent AI',
-                        'Models become replaceable commodities'
-                      ].map((point, i) => (
-                        <div key={i} className="flex items-start gap-3">
-                          <div className="w-1.5 h-1.5 rounded-full mt-2" style={{ backgroundColor: '#635BFF' }}></div>
-                          <span style={{ color: '#CBD5E1' }}>{point}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="text-center p-6 rounded" style={{ backgroundColor: 'rgba(99, 91, 255, 0.15)' }}>
-                    <p className="text-xl font-bold text-white leading-relaxed">
-                      This is how future AI UX will look.
-                    </p>
-                  </div>
                 </div>
 
-                <div className="border-t pt-8" style={{ borderColor: '#1E293B' }}>
-                  <h4 className="text-2xl font-bold mb-4 text-center" style={{ color: '#635BFF' }}>Custom AIs</h4>
-                  <p className="text-lg text-center" style={{ color: '#CBD5E1' }}>
+                <div style={{ textAlign: 'center', padding: '24px', borderRadius: '12px', background: 'linear-gradient(135deg, rgba(139,92,246,0.1), rgba(34,211,238,0.05))', border: '1px solid rgba(139,92,246,0.2)' }}>
+                  <p style={{ fontSize: '18px', fontWeight: 700, color: '#F1F5F9', margin: 0 }}>This is how future AI UX will look.</p>
+                </div>
+
+                <div style={{ borderTop: '1px solid #1E2D45', marginTop: '40px', paddingTop: '40px', textAlign: 'center' }}>
+                  <h4 style={{ fontSize: '28px', fontWeight: 800, ...gradientText, marginBottom: '12px' }}>Custom AIs</h4>
+                  <p style={{ color: '#94A3B8', fontSize: '16px', maxWidth: '460px', margin: '0 auto', lineHeight: 1.65 }}>
                     Tailored AI agents built specifically for your organization's unique workflows, data, and business requirements.
                   </p>
                 </div>
@@ -348,75 +535,118 @@ const AxigonWebsite = () => {
             </div>
           </section>
 
-          <section className="py-24 bg-white">
+          {/* Enterprise Solutions */}
+          <section style={{ backgroundColor: '#06080F', padding: '96px 0' }}>
             <div className="max-w-7xl mx-auto px-6">
-              <h2 className="text-4xl font-bold text-center mb-16" style={{ color: '#0B1220' }}>Enterprise Solutions</h2>
-              <div className="flex gap-3 justify-center mb-10">
+              <div style={{ textAlign: 'center', marginBottom: '56px' }}>
+                <p style={sectionLabel('#8B5CF6')}>Services</p>
+                <h2 style={{ fontSize: '40px', fontWeight: 800, color: '#F1F5F9', letterSpacing: '-0.02em' }}>Enterprise Solutions</h2>
+              </div>
+              <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', marginBottom: '36px', flexWrap: 'wrap' }}>
                 {Object.keys(solutions).map(k => (
-                  <button key={k} onClick={() => setActiveTab(k)} className="px-6 py-3 rounded font-semibold" style={{ backgroundColor: activeTab === k ? '#0A2540' : '#EEF3FA', color: activeTab === k ? 'white' : '#0B1220' }}>
-                    {solutions[k].title.split(' ')[0]}
-                  </button>
+                  <button key={k} onClick={() => setActiveTab(k)}
+                    style={{
+                      padding: '10px 22px', borderRadius: '8px', fontWeight: 600, fontSize: '14px', cursor: 'pointer', transition: 'all 0.2s ease',
+                      ...(activeTab === k
+                        ? { background: 'linear-gradient(135deg, #8B5CF6, #6366F1)', color: 'white', border: '1px solid transparent', boxShadow: '0 0 20px rgba(139,92,246,0.35)' }
+                        : { backgroundColor: '#0F1A2E', color: '#94A3B8', border: '1px solid #1E2D45' })
+                    }}
+                    onMouseEnter={e => { if (activeTab !== k) { e.currentTarget.style.borderColor = '#8B5CF6'; e.currentTarget.style.color = '#F1F5F9'; } }}
+                    onMouseLeave={e => { if (activeTab !== k) { e.currentTarget.style.borderColor = '#1E2D45'; e.currentTarget.style.color = '#94A3B8'; } }}
+                  >{solutions[k].title.split(' ')[0]}</button>
                 ))}
               </div>
-              <div className="rounded-lg p-10 max-w-4xl mx-auto" style={{ backgroundColor: '#0A2540' }}>
-                <h3 className="text-3xl font-bold mb-3 text-white">{solutions[activeTab].title}</h3>
-                <p className="text-lg mb-8" style={{ color: '#CBD5E1' }}>{solutions[activeTab].desc}</p>
-                <div className="space-y-4">
+              <div className="max-w-4xl mx-auto" style={{ ...darkCard, padding: '48px', boxShadow: '0 32px 64px rgba(0,0,0,0.35)', position: 'relative', overflow: 'hidden' }}>
+                <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '3px', background: 'linear-gradient(90deg, #8B5CF6, #22D3EE)' }} />
+                <h3 style={{ fontSize: '32px', fontWeight: 800, color: '#F1F5F9', marginBottom: '12px', letterSpacing: '-0.01em' }}>{solutions[activeTab].title}</h3>
+                <p style={{ fontSize: '17px', color: '#94A3B8', marginBottom: '32px', lineHeight: 1.65 }}>{solutions[activeTab].desc}</p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
                   {solutions[activeTab].points.map((p, i) => (
-                    <div key={i} className="flex gap-4"><div className="w-1.5 h-1.5 rounded-full mt-2" style={{ backgroundColor: '#635BFF' }}></div><span style={{ color: '#CBD5E1' }}>{p}</span></div>
+                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                      <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: 'rgba(139,92,246,0.15)', border: '1px solid rgba(139,92,246,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        <div style={{ width: '7px', height: '7px', borderRadius: '50%', backgroundColor: '#8B5CF6' }} />
+                      </div>
+                      <span style={{ color: '#CBD5E1', fontSize: '16px' }}>{p}</span>
+                    </div>
                   ))}
                 </div>
               </div>
             </div>
           </section>
 
-          <section className="py-24" style={{ backgroundColor: '#0A2540' }}>
+          {/* Stats */}
+          <section style={{ background: 'linear-gradient(135deg, #0C1221 0%, #0F1A2E 100%)', padding: '80px 0', borderTop: '1px solid #1E2D45', borderBottom: '1px solid #1E2D45' }}>
             <div className="max-w-7xl mx-auto px-6">
-              <div className="grid md:grid-cols-4 gap-10">
+              <div className="grid md:grid-cols-4 gap-6">
                 {[{ n: '100+', t: 'LLMs Across Ecosystems' }, { n: '20+', t: 'Specialized Domains' }, { n: '99.9%', t: 'System Uptime' }, { n: '10×', t: 'Faster Insights' }].map((s, i) => (
-                  <div key={i} className="text-center"><div className="text-5xl font-bold mb-3" style={{ color: '#635BFF' }}>{s.n}</div><div style={{ color: '#CBD5E1' }}>{s.t}</div></div>
+                  <div key={i} style={{ textAlign: 'center', padding: '36px 16px', borderRadius: '14px', backgroundColor: 'rgba(255,255,255,0.02)', border: '1px solid #1E2D45', transition: 'border-color 0.2s' }}
+                    onMouseEnter={e => e.currentTarget.style.borderColor = 'rgba(245,158,11,0.3)'}
+                    onMouseLeave={e => e.currentTarget.style.borderColor = '#1E2D45'}
+                  >
+                    <div style={{ fontSize: '52px', fontWeight: 800, background: 'linear-gradient(135deg, #F59E0B, #FBBF24)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', marginBottom: '8px', letterSpacing: '-0.02em' }}>{s.n}</div>
+                    <div style={{ color: '#94A3B8', fontSize: '14px', fontWeight: 500 }}>{s.t}</div>
+                  </div>
                 ))}
               </div>
             </div>
           </section>
 
-          <section className="py-24" style={{ backgroundColor: '#F7FAFF' }}>
+          {/* Leadership */}
+          <section style={{ backgroundColor: '#F8FAFC', padding: '96px 0' }}>
             <div className="max-w-7xl mx-auto px-6">
-              <h2 className="text-4xl font-bold text-center mb-16" style={{ color: '#0B1220' }}>Leadership</h2>
-              <div className="relative max-w-md mx-auto">
-                <div className="overflow-hidden">
-                  <div className="flex transition-transform duration-500" style={{ transform: `translateX(-${currentSlide * 100}%)` }}>
+              <div style={{ textAlign: 'center', marginBottom: '56px' }}>
+                <p style={sectionLabel('#8B5CF6')}>The Team</p>
+                <h2 style={{ fontSize: '40px', fontWeight: 800, color: '#0F172A', letterSpacing: '-0.02em' }}>Leadership</h2>
+              </div>
+              <div style={{ position: 'relative', maxWidth: '400px', margin: '0 auto' }}>
+                <div style={{ overflow: 'hidden', borderRadius: '18px' }}>
+                  <div style={{ display: 'flex', transition: 'transform 0.5s cubic-bezier(0.4,0,0.2,1)', transform: `translateX(-${currentSlide * 100}%)` }}>
                     {team.map((m, i) => (
-                      <div key={i} className="w-full flex-shrink-0">
-                        <div className="rounded-lg p-10 text-center border bg-white" style={{ borderColor: '#E2E8F0' }}>
-                          <div className="w-32 h-32 rounded-full mx-auto mb-6" style={{ background: 'linear-gradient(135deg, #0A2540 0%, #635BFF 100%)' }}></div>
-                          <h3 className="text-2xl font-bold mb-2" style={{ color: '#0B1220' }}>{m.name}</h3>
-                          <p className="mb-6" style={{ color: '#475569' }}>{m.role}</p>
-                          <button type="button" className="inline-flex items-center gap-2" style={{ color: '#635BFF', background: 'none', border: 'none', cursor: 'pointer' }}><Linkedin size={20} /> LinkedIn</button>
+                      <div key={i} style={{ width: '100%', flexShrink: 0 }}>
+                        <div style={{ ...lightCard, padding: '48px', textAlign: 'center', boxShadow: '0 8px 32px rgba(0,0,0,0.1)' }}>
+                          <div style={{ width: '88px', height: '88px', borderRadius: '50%', margin: '0 auto 24px', background: 'linear-gradient(135deg, #0F172A 0%, #8B5CF6 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '32px', fontWeight: 800, color: 'white' }}>
+                            {m.name[0]}
+                          </div>
+                          <h3 style={{ fontSize: '22px', fontWeight: 800, color: '#0F172A', marginBottom: '6px' }}>{m.name}</h3>
+                          <p style={{ color: '#6B7280', marginBottom: '28px', fontSize: '15px' }}>{m.role}</p>
+                          <button style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', color: '#8B5CF6', background: 'none', border: '1px solid rgba(139,92,246,0.3)', padding: '8px 20px', borderRadius: '8px', cursor: 'pointer', fontWeight: 600, fontSize: '14px', transition: 'all 0.2s' }}
+                            onMouseEnter={e => e.currentTarget.style.backgroundColor = 'rgba(139,92,246,0.08)'}
+                            onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
+                          ><Linkedin size={15} /> LinkedIn</button>
                         </div>
                       </div>
                     ))}
                   </div>
                 </div>
-                <button onClick={() => setCurrentSlide(p => p === 0 ? team.length - 1 : p - 1)} className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-4 rounded-full p-2 bg-white"><ChevronLeft size={24} /></button>
-                <button onClick={() => setCurrentSlide(p => p === team.length - 1 ? 0 : p + 1)} className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-4 rounded-full p-2 bg-white"><ChevronRight size={24} /></button>
+                <button onClick={() => setCurrentSlide(p => p === 0 ? team.length - 1 : p - 1)}
+                  style={{ position: 'absolute', left: '-20px', top: '50%', transform: 'translateY(-50%)', backgroundColor: 'white', border: '1px solid #E2E8F0', borderRadius: '50%', width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', transition: 'all 0.2s' }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = '#8B5CF6'; e.currentTarget.style.boxShadow = '0 4px 20px rgba(0,0,0,0.15)'; }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = '#E2E8F0'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)'; }}
+                ><ChevronLeft size={20} color="#374151" /></button>
+                <button onClick={() => setCurrentSlide(p => p === team.length - 1 ? 0 : p + 1)}
+                  style={{ position: 'absolute', right: '-20px', top: '50%', transform: 'translateY(-50%)', backgroundColor: 'white', border: '1px solid #E2E8F0', borderRadius: '50%', width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', transition: 'all 0.2s' }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = '#8B5CF6'; e.currentTarget.style.boxShadow = '0 4px 20px rgba(0,0,0,0.15)'; }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = '#E2E8F0'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)'; }}
+                ><ChevronRight size={20} color="#374151" /></button>
               </div>
             </div>
           </section>
 
-          <section className="py-24" style={{ backgroundColor: '#0A2540' }}>
-            <div className="max-w-5xl mx-auto px-6 text-center">
-              <h2 className="text-4xl md:text-5xl font-bold mb-6 text-white">
-                Stop relying on general AI for specialized problems.
+          {/* CTA */}
+          <section style={{ position: 'relative', background: 'radial-gradient(ellipse at 50% 0%, #1a0a3e 0%, #06080F 60%)', padding: '120px 0', borderTop: '1px solid #1E2D45', overflow: 'hidden' }}>
+            <div style={{ position: 'absolute', width: '600px', height: '600px', borderRadius: '50%', background: 'radial-gradient(ellipse, rgba(139,92,246,0.12) 0%, transparent 70%)', top: '-200px', left: '50%', transform: 'translateX(-50%)', pointerEvents: 'none' }} />
+            <div style={{ position: 'relative', zIndex: 1, maxWidth: '720px', margin: '0 auto', textAlign: 'center', padding: '0 24px' }}>
+              <h2 style={{ fontSize: 'clamp(36px, 5vw, 52px)', fontWeight: 800, color: '#F1F5F9', marginBottom: '20px', lineHeight: 1.15, letterSpacing: '-0.025em' }}>
+                Stop relying on general AI<br />for specialized problems.
               </h2>
-              <p className="text-xl mb-10 max-w-3xl mx-auto" style={{ color: '#CBD5E1' }}>
+              <p style={{ fontSize: '18px', color: '#94A3B8', marginBottom: '48px', lineHeight: 1.7 }}>
                 Deploy AI agents that understand your domain and deliver results.
               </p>
-              <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <button className="px-8 py-4 rounded font-semibold text-white transition-all" style={{ backgroundColor: '#635BFF' }} onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#4F46E5'} onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#635BFF'}>
+              <div style={{ display: 'flex', gap: '14px', justifyContent: 'center', flexWrap: 'wrap' }}>
+                <button style={{ ...btnPrimary, padding: '15px 40px', fontSize: '16px' }} onMouseEnter={btnPrimaryHover} onMouseLeave={btnPrimaryLeave}>
                   Request Demo
                 </button>
-                <button onClick={() => setCurrentPage('marketplace')} className="px-8 py-4 rounded font-semibold border-2 border-white text-white transition-all hover:bg-white hover:text-slate-900">
+                <button onClick={() => setCurrentPage('marketplace')} style={{ ...btnGhost, padding: '15px 40px', fontSize: '16px' }} onMouseEnter={btnGhostHover} onMouseLeave={btnGhostLeave}>
                   Explore Marketplace
                 </button>
               </div>
@@ -425,86 +655,121 @@ const AxigonWebsite = () => {
         </>
       )}
 
+      {/* ════════════════════════════════════════════
+          DASHBOARD
+      ════════════════════════════════════════════ */}
       {currentPage === 'dashboard' && (
-        <section className="min-h-screen pt-20" style={{ backgroundColor: '#F7FAFF' }}>
-          <div className="max-w-7xl mx-auto px-6 py-20">
-            <div className="flex items-center justify-between mb-12">
-              <h1 className="text-5xl font-bold" style={{ color: '#0B1220' }}>Your AI Agents</h1>
-              <button onClick={handleLogout} className="px-6 py-3 rounded font-semibold text-white" style={{ backgroundColor: '#635BFF' }}>
-                Log Out
-              </button>
+        <section style={{ minHeight: '100vh', backgroundColor: '#06080F', paddingTop: '80px' }}>
+          <div className="max-w-7xl mx-auto px-6 py-12">
+            <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: '48px', flexWrap: 'wrap', gap: '16px' }}>
+              <div>
+                <p style={sectionLabel('#8B5CF6')}>Dashboard</p>
+                <h1 style={{ fontSize: '40px', fontWeight: 800, color: '#F1F5F9', letterSpacing: '-0.02em', margin: 0 }}>Your AI Agents</h1>
+              </div>
+              <button onClick={handleLogout}
+                style={{ backgroundColor: '#0F1A2E', color: '#94A3B8', border: '1px solid #1E2D45', padding: '10px 22px', borderRadius: '8px', fontWeight: 600, fontSize: '14px', cursor: 'pointer', transition: 'all 0.2s' }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = '#8B5CF6'; e.currentTarget.style.color = '#F1F5F9'; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = '#1E2D45'; e.currentTarget.style.color = '#94A3B8'; }}
+              >Sign Out</button>
             </div>
-            
-            <div className="grid md:grid-cols-3 gap-6">
-              {agents.map((a, i) => (
-                <div key={i} className="rounded-lg p-6 border bg-white" style={{ borderColor: '#E2E8F0' }}>
-                  <div className="w-12 h-12 rounded-lg flex items-center justify-center mb-4" style={{ backgroundColor: '#FFF4E0' }}>
-                    <div style={{ color: '#C58B2A', fontSize: '24px', fontWeight: 'bold' }}>AI</div>
+            <div className="grid md:grid-cols-3 gap-5">
+              {agents.map((a, i) => {
+                const colors = ['#8B5CF6', '#22D3EE', '#F59E0B', '#10B981', '#F43F5E', '#6366F1'];
+                const c = colors[i % colors.length];
+                return (
+                  <div key={i} style={{ ...darkCard, padding: '28px', position: 'relative', overflow: 'hidden' }}
+                    onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.borderColor = `${c}60`; e.currentTarget.style.boxShadow = `0 20px 48px rgba(0,0,0,0.5), 0 0 0 1px ${c}30`; }}
+                    onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.borderColor = '#1E2D45'; e.currentTarget.style.boxShadow = 'none'; }}
+                  >
+                    <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '2px', backgroundColor: c }} />
+                    <div style={{ width: '44px', height: '44px', borderRadius: '10px', backgroundColor: `${c}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px', border: `1px solid ${c}30` }}>
+                      <span style={{ color: c, fontSize: '14px', fontWeight: 800 }}>AI</span>
+                    </div>
+                    <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#F1F5F9', marginBottom: '6px' }}>{a.name}</h3>
+                    <div style={{ fontSize: '11px', fontWeight: 700, color: c, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '12px' }}>{a.domain}</div>
+                    <p style={{ fontSize: '14px', color: '#94A3B8', lineHeight: 1.65, marginBottom: '20px' }}>{a.desc}</p>
+                    <button style={{ fontSize: '13px', fontWeight: 600, color: c, background: 'none', border: 'none', padding: 0, cursor: 'pointer', transition: 'opacity 0.2s' }}
+                      onMouseEnter={e => e.currentTarget.style.opacity = '0.65'}
+                      onMouseLeave={e => e.currentTarget.style.opacity = '1'}
+                    >Launch Agent →</button>
                   </div>
-                  <h3 className="text-xl font-bold mb-2" style={{ color: '#0B1220' }}>{a.name}</h3>
-                  <div className="text-sm font-semibold mb-3 uppercase" style={{ color: '#635BFF' }}>{a.domain}</div>
-                  <p className="text-sm mb-4" style={{ color: '#475569' }}>{a.desc}</p>
-                  <button className="text-sm font-semibold" style={{ color: '#635BFF' }}>Launch Agent →</button>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         </section>
       )}
 
+      {/* ════════════════════════════════════════════
+          LOGOUT SUCCESS
+      ════════════════════════════════════════════ */}
       {currentPage === 'logout-success' && (
-        <section className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#F7FAFF' }}>
-          <div className="text-center px-6">
-            <div className="w-20 h-20 rounded-full mx-auto mb-6 flex items-center justify-center" style={{ backgroundColor: '#635BFF' }}>
-              <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
+        <section style={{ minHeight: '100vh', backgroundColor: '#06080F', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ textAlign: 'center', padding: '0 24px' }}>
+            <div style={{ width: '72px', height: '72px', borderRadius: '50%', background: 'linear-gradient(135deg, #8B5CF6, #6366F1)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 28px', boxShadow: '0 0 32px rgba(139,92,246,0.45)' }}>
+              <svg width="32" height="28" viewBox="0 0 32 28" fill="none"><path d="M2 14L11 23L30 2" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" /></svg>
             </div>
-            <h1 className="text-4xl font-bold mb-4" style={{ color: '#0B1220' }}>Successfully Logged Out</h1>
-            <p className="text-lg mb-8" style={{ color: '#475569' }}>Thank you for using Axigon AI</p>
-            <button onClick={() => setCurrentPage('company')} className="px-8 py-3 rounded font-semibold text-white" style={{ backgroundColor: '#635BFF' }}>
+            <h1 style={{ fontSize: '36px', fontWeight: 800, color: '#F1F5F9', marginBottom: '12px', letterSpacing: '-0.02em' }}>Successfully Logged Out</h1>
+            <p style={{ fontSize: '16px', color: '#94A3B8', marginBottom: '40px' }}>Thank you for using Axigon AI</p>
+            <button onClick={() => setCurrentPage('company')} style={{ ...btnPrimary, padding: '14px 36px', fontSize: '15px' }} onMouseEnter={btnPrimaryHover} onMouseLeave={btnPrimaryLeave}>
               Return to Home
             </button>
           </div>
         </section>
       )}
 
+      {/* ════════════════════════════════════════════
+          MARKETPLACE
+      ════════════════════════════════════════════ */}
       {currentPage === 'marketplace' && (
         <>
-          <section className="relative pt-32 pb-20" style={{ background: 'linear-gradient(135deg, #071A2E 0%, #0A2540 50%, #0B2D5B 100%)' }}>
-            <div className="absolute inset-0" style={{ background: 'radial-gradient(circle at 50% 50%, rgba(99, 91, 255, 0.08) 0%, transparent 70%)' }}></div>
-            <div className="max-w-7xl mx-auto px-6 text-center relative z-10">
-              <h1 className="text-5xl md:text-6xl font-bold mb-6 text-white">AI Agents Marketplace</h1>
-              <p className="text-xl max-w-3xl mx-auto mb-4" style={{ color: '#CBD5E1' }}>Purpose-built AI agents, each specialized for a single domain</p>
-              <p className="text-lg max-w-2xl mx-auto mb-8" style={{ color: '#94A3B8' }}>These are not generic chatbots. Each agent is outcome-driven and optimized for precision.</p>
-              <div className="flex gap-4 justify-center">
-                <button onClick={() => setCurrentPage('login')} className="px-8 py-3 rounded font-semibold text-white" style={{ backgroundColor: '#635BFF' }}>Login</button>
-                <button onClick={() => setCurrentPage('signup')} className="px-8 py-3 rounded font-semibold border-2 border-white text-white">Sign Up</button>
+          {/* Marketplace hero */}
+          <section style={{ position: 'relative', paddingTop: '140px', paddingBottom: '80px', backgroundColor: '#06080F', overflow: 'hidden' }}>
+            <div style={{ position: 'absolute', width: '800px', height: '600px', borderRadius: '50%', background: 'radial-gradient(ellipse, rgba(139,92,246,0.14) 0%, transparent 70%)', top: '-180px', left: '50%', transform: 'translateX(-50%)', pointerEvents: 'none' }} />
+            <div style={{ position: 'absolute', inset: 0, backgroundImage: 'linear-gradient(rgba(139,92,246,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(139,92,246,0.04) 1px, transparent 1px)', backgroundSize: '64px 64px', pointerEvents: 'none' }} />
+            <div style={{ position: 'relative', zIndex: 10, maxWidth: '1280px', margin: '0 auto', padding: '0 24px', textAlign: 'center' }}>
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', backgroundColor: 'rgba(34,211,238,0.08)', border: '1px solid rgba(34,211,238,0.22)', padding: '6px 16px', borderRadius: '999px', marginBottom: '32px' }}>
+                <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#22D3EE', boxShadow: '0 0 8px #22D3EE' }} />
+                <span style={{ color: '#22D3EE', fontSize: '12px', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase' }}>Live Platform</span>
+              </div>
+              <h1 style={{ fontSize: 'clamp(40px, 6vw, 64px)', fontWeight: 800, color: '#F1F5F9', marginBottom: '20px', lineHeight: 1.1, letterSpacing: '-0.025em' }}>AI Agents Marketplace</h1>
+              <p style={{ fontSize: '19px', color: '#94A3B8', maxWidth: '580px', margin: '0 auto 12px', lineHeight: 1.65 }}>Purpose-built AI agents, each specialized for a single domain</p>
+              <p style={{ fontSize: '14px', color: '#4B6279', maxWidth: '480px', margin: '0 auto 40px', lineHeight: 1.65 }}>These are not generic chatbots. Each agent is outcome-driven and optimized for precision.</p>
+              <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+                <button onClick={() => setCurrentPage('login')} style={{ ...btnPrimary, padding: '12px 28px', fontSize: '15px' }} onMouseEnter={btnPrimaryHover} onMouseLeave={btnPrimaryLeave}>Login</button>
+                <button onClick={() => setCurrentPage('signup')} style={{ ...btnGhost, padding: '12px 28px', fontSize: '15px' }} onMouseEnter={btnGhostHover} onMouseLeave={btnGhostLeave}>Sign Up</button>
               </div>
             </div>
           </section>
 
-          <section className="py-20" style={{ backgroundColor: '#F7FAFF' }}>
+          {/* Stats */}
+          <section style={{ backgroundColor: '#080C16', padding: '80px 0', borderTop: '1px solid #1E2D45' }}>
             <div className="max-w-7xl mx-auto px-6">
-              <h2 className="text-3xl font-bold text-center mb-6" style={{ color: '#0B1220' }}>Why Specialized Agents?</h2>
-              <p className="text-lg text-center max-w-4xl mx-auto mb-16" style={{ color: '#475569' }}>Generalist AI models attempt to do everything. Our agents master one domain.</p>
-              <div className="grid md:grid-cols-4 gap-8">
+              <h2 style={{ fontSize: '28px', fontWeight: 800, textAlign: 'center', color: '#F1F5F9', marginBottom: '12px', letterSpacing: '-0.01em' }}>Why Specialized Agents?</h2>
+              <p style={{ fontSize: '16px', color: '#94A3B8', textAlign: 'center', maxWidth: '520px', margin: '0 auto 48px', lineHeight: 1.65 }}>Generalist AI models attempt to do everything. Our agents master one domain.</p>
+              <div className="grid md:grid-cols-4 gap-5">
                 {[{ n: '100+', t: 'LLMs Across Ecosystems' }, { n: '20+', t: 'Specialized Domains' }, { n: '99.9%', t: 'System Uptime' }, { n: '10×', t: 'Faster Insights' }].map((s, i) => (
-                  <div key={i} className="p-8 rounded-lg border text-center bg-white" style={{ borderColor: '#E2E8F0' }}>
-                    <div className="text-4xl font-bold mb-3" style={{ color: '#635BFF' }}>{s.n}</div>
-                    <div className="text-sm" style={{ color: '#475569' }}>{s.t}</div>
+                  <div key={i} style={{ ...darkCard, padding: '32px', textAlign: 'center' }}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(245,158,11,0.4)'; e.currentTarget.style.transform = 'translateY(-3px)'; }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = '#1E2D45'; e.currentTarget.style.transform = 'translateY(0)'; }}
+                  >
+                    <div style={{ fontSize: '40px', fontWeight: 800, background: 'linear-gradient(135deg, #F59E0B, #FBBF24)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', marginBottom: '8px' }}>{s.n}</div>
+                    <div style={{ fontSize: '14px', color: '#94A3B8' }}>{s.t}</div>
                   </div>
                 ))}
               </div>
             </div>
           </section>
 
-          <section className="py-20 bg-white">
+          {/* Platform comparison */}
+          <section style={{ backgroundColor: '#F8FAFC', padding: '80px 0' }}>
             <div className="max-w-7xl mx-auto px-6">
-              <h2 className="text-4xl font-bold text-center mb-4" style={{ color: '#0B1220' }}>Top AI Agents / Platforms (2025–2026)</h2>
-              <p className="text-center mb-12" style={{ color: '#475569' }}>Most-used and influential AI tools based on popularity and market share</p>
-              
-              <div className="max-w-5xl mx-auto space-y-6">
+              <div style={{ textAlign: 'center', marginBottom: '48px' }}>
+                <p style={sectionLabel('#8B5CF6')}>Industry Overview</p>
+                <h2 style={{ fontSize: '32px', fontWeight: 800, color: '#0F172A', marginBottom: '8px', letterSpacing: '-0.01em' }}>Top AI Agents / Platforms (2025–2026)</h2>
+                <p style={{ color: '#6B7280', fontSize: '15px' }}>Most-used and influential AI tools based on popularity and market share</p>
+              </div>
+              <div className="max-w-5xl mx-auto" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 {[
                   { rank: '🥇', name: 'ChatGPT', org: 'OpenAI', share: 65, desc: 'Largest AI platform with hundreds of millions of users' },
                   { rank: '🥈', name: 'Google Gemini', org: 'Google', share: 21, desc: 'Powers ~21% of AI search interactions globally' },
@@ -513,33 +778,30 @@ const AxigonWebsite = () => {
                   { rank: '⭐', name: 'Perplexity AI', org: 'Perplexity', share: 2, desc: 'Research and knowledge-focused agent' },
                   { rank: '🔥', name: 'DeepSeek', org: 'DeepSeek', share: 1, desc: 'Open-source and cost-effective offerings' }
                 ].map((platform, i) => (
-                  <div key={i} className="border rounded-lg p-6 bg-white hover:shadow-md transition" style={{ borderColor: '#E2E8F0' }}>
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="flex items-center gap-4">
-                        <span className="text-3xl">{platform.rank}</span>
+                  <div key={i} style={{ ...lightCard, padding: '24px' }} onMouseEnter={lightCardHover} onMouseLeave={lightCardLeave}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                        <span style={{ fontSize: '26px' }}>{platform.rank}</span>
                         <div>
-                          <h3 className="text-xl font-bold" style={{ color: '#0B1220' }}>{platform.name}</h3>
-                          <p className="text-sm" style={{ color: '#635BFF' }}>{platform.org}</p>
+                          <h3 style={{ fontSize: '17px', fontWeight: 700, color: '#0F172A', margin: '0 0 2px' }}>{platform.name}</h3>
+                          <p style={{ fontSize: '13px', color: '#8B5CF6', fontWeight: 600, margin: 0 }}>{platform.org}</p>
                         </div>
                       </div>
-                      <div className="text-right">
-                        <div className="text-2xl font-bold" style={{ color: '#635BFF' }}>{platform.share}%</div>
-                        <div className="text-xs" style={{ color: '#94A3B8' }}>Market Share</div>
+                      <div style={{ textAlign: 'right' }}>
+                        <div style={{ fontSize: '22px', fontWeight: 800, background: 'linear-gradient(135deg, #8B5CF6, #6366F1)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>{platform.share}%</div>
+                        <div style={{ fontSize: '11px', color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Market Share</div>
                       </div>
                     </div>
-                    <div className="mb-3">
-                      <div className="h-3 rounded-full" style={{ backgroundColor: '#EEF3FA' }}>
-                        <div className="h-3 rounded-full transition-all duration-1000" style={{ width: `${platform.share}%`, backgroundColor: '#635BFF' }}></div>
-                      </div>
+                    <div style={{ height: '5px', borderRadius: '999px', backgroundColor: '#F1F5F9', overflow: 'hidden', marginBottom: '10px' }}>
+                      <div style={{ height: '5px', borderRadius: '999px', width: `${platform.share}%`, background: 'linear-gradient(90deg, #8B5CF6, #22D3EE)' }} />
                     </div>
-                    <p className="text-sm" style={{ color: '#475569' }}>{platform.desc}</p>
+                    <p style={{ fontSize: '14px', color: '#6B7280', margin: 0, lineHeight: 1.55 }}>{platform.desc}</p>
                   </div>
                 ))}
               </div>
-
-              <div className="mt-12 p-6 rounded-lg max-w-5xl mx-auto" style={{ backgroundColor: '#F7FAFF', borderLeft: '4px solid #635BFF' }}>
-                <h4 className="font-bold mb-2" style={{ color: '#0B1220' }}>📌 Usage Share Snapshot</h4>
-                <p style={{ color: '#475569', fontSize: '14px' }}>
+              <div style={{ marginTop: '40px', padding: '22px 28px', borderRadius: '12px', backgroundColor: 'white', borderLeft: '4px solid #8B5CF6', maxWidth: '860px', margin: '40px auto 0', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
+                <h4 style={{ fontWeight: 700, color: '#0F172A', marginBottom: '6px', fontSize: '15px', margin: '0 0 6px' }}>📌 Usage Share Snapshot</h4>
+                <p style={{ color: '#6B7280', fontSize: '14px', lineHeight: 1.6, margin: 0 }}>
                   ChatGPT leads with ~64–65% of AI-platform traffic, Gemini ~21%, other platforms (Grok, Perplexity, Claude, Copilot) together make up the remaining ~10–14%
                 </p>
               </div>
@@ -548,56 +810,57 @@ const AxigonWebsite = () => {
         </>
       )}
 
+      {/* ════════════════════════════════════════════
+          LOGIN
+      ════════════════════════════════════════════ */}
       {currentPage === 'login' && (
-        <section className="min-h-screen flex items-center justify-center pt-20" style={{ backgroundColor: '#F7FAFF' }}>
-          <div className="w-full max-w-md px-6">
-            <div className="rounded-lg p-8 shadow-lg border bg-white" style={{ borderColor: '#E2E8F0' }}>
-              <h2 className="text-3xl font-bold mb-2 text-center" style={{ color: '#0B1220' }}>Welcome Back</h2>
-              <p className="text-center mb-8" style={{ color: '#475569' }}>Log in to your Axigon AI account</p>
-              {error && <div className="mb-4 p-3 rounded" style={{ backgroundColor: '#fee2e2', color: '#dc2626' }}>{error}</div>}
-              <form onSubmit={handleLogin} className="space-y-4">
+        <section style={{ minHeight: '100vh', backgroundColor: '#06080F', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '80px 24px 40px' }}>
+          <div style={{ width: '100%', maxWidth: '420px' }}>
+            <div style={{ textAlign: 'center', marginBottom: '36px' }}>
+              <button onClick={() => setCurrentPage('company')} style={{ fontSize: '22px', fontWeight: 800, color: '#F1F5F9', background: 'none', border: 'none', cursor: 'pointer', marginBottom: '28px', display: 'inline-block' }}>
+                Axigon<span style={gradientText}>AI</span>
+              </button>
+              <h2 style={{ fontSize: '28px', fontWeight: 800, color: '#F1F5F9', marginBottom: '8px', letterSpacing: '-0.01em' }}>Welcome Back</h2>
+              <p style={{ color: '#94A3B8', fontSize: '15px', margin: 0 }}>Log in to your Axigon AI account</p>
+            </div>
+            <div style={{ backgroundColor: '#0F1A2E', border: '1px solid #1E2D45', borderRadius: '18px', padding: '36px', boxShadow: '0 40px 80px rgba(0,0,0,0.55)' }}>
+              {error && (
+                <div style={{ marginBottom: '20px', padding: '12px 16px', borderRadius: '8px', backgroundColor: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.28)', color: '#FCA5A5', fontSize: '14px' }}>
+                  {error}
+                </div>
+              )}
+              <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                 <div>
-                  <label className="block text-sm font-semibold mb-2" style={{ color: '#0B1220' }}>Email</label>
-                  <input 
-                    type="email" 
-                    placeholder="you@company.com" 
-                    value={loginData.email} 
-                    onChange={(e) => setLoginData({...loginData, email: e.target.value})} 
-                    className="w-full px-4 py-3 rounded border outline-none focus:border-indigo-500" 
-                    style={{ borderColor: '#E2E8F0' }} 
-                    disabled={loading}  
-
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#94A3B8', marginBottom: '8px', letterSpacing: '0.08em', textTransform: 'uppercase' }}>Email</label>
+                  <input type="email" placeholder="you@company.com" value={loginData.email} onChange={e => setLoginData({ ...loginData, email: e.target.value })} disabled={loading}
+                    style={inputStyle}
+                    onFocus={e => e.currentTarget.style.borderColor = '#8B5CF6'}
+                    onBlur={e => e.currentTarget.style.borderColor = '#1E2D45'}
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold mb-2" style={{ color: '#0B1220' }}>Password</label>
-                  <input 
-                    type="password" 
-                    placeholder="Enter password" 
-                    value={loginData.password} 
-                    onChange={(e) => setLoginData({...loginData, password: e.target.value})} 
-                    className="w-full px-4 py-3 rounded border outline-none focus:border-indigo-500" 
-                    style={{ borderColor: '#E2E8F0' }} 
-                    disabled={loading}
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#94A3B8', marginBottom: '8px', letterSpacing: '0.08em', textTransform: 'uppercase' }}>Password</label>
+                  <input type="password" placeholder="Enter password" value={loginData.password} onChange={e => setLoginData({ ...loginData, password: e.target.value })} disabled={loading}
+                    style={inputStyle}
+                    onFocus={e => e.currentTarget.style.borderColor = '#8B5CF6'}
+                    onBlur={e => e.currentTarget.style.borderColor = '#1E2D45'}
                   />
                 </div>
-                <div className="flex items-center justify-between text-sm">
-                  <label className="flex items-center gap-2" style={{ color: '#475569' }}>
-                    <input type="checkbox" className="rounded" />
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '14px' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#94A3B8', cursor: 'pointer' }}>
+                    <input type="checkbox" style={{ accentColor: '#8B5CF6' }} />
                     Remember me
                   </label>
-                  <button type="button" style={{ color: '#635BFF', background: 'none', border: 'none', padding: 0, cursor: 'pointer', textDecoration: 'underline' }}>Forgot password?</button>
+                  <button type="button" style={{ color: '#A78BFA', background: 'none', border: 'none', cursor: 'pointer', fontSize: '14px', fontWeight: 500 }}>Forgot password?</button>
                 </div>
-                <button 
-                  type="submit" 
-                  className="w-full py-3 rounded font-semibold text-white transition-all hover:opacity-90" 
-                  style={{ backgroundColor: '#635BFF', opacity: loading ? 0.7 : 1 }}
-                  disabled={loading}
-                >
-                  {loading ? 'Logging in...' : 'Log In'}
-                </button>
-                <p className="text-center text-sm" style={{ color: '#475569' }}>
-                  Don't have an account? <button type="button" onClick={() => setCurrentPage('signup')} className="font-semibold" style={{ color: '#635BFF' }}>Sign up</button>
+                <button type="submit" disabled={loading}
+                  style={{ ...btnPrimary, padding: '13px', fontSize: '15px', width: '100%', opacity: loading ? 0.6 : 1, cursor: loading ? 'not-allowed' : 'pointer' }}
+                  onMouseEnter={e => { if (!loading) btnPrimaryHover(e); }}
+                  onMouseLeave={e => { if (!loading) btnPrimaryLeave(e); }}
+                >{loading ? 'Logging in...' : 'Log In'}</button>
+                <p style={{ textAlign: 'center', fontSize: '14px', color: '#94A3B8', margin: 0 }}>
+                  Don't have an account?{' '}
+                  <button type="button" onClick={() => setCurrentPage('signup')} style={{ color: '#A78BFA', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: '14px' }}>Sign up</button>
                 </p>
               </form>
             </div>
@@ -605,75 +868,53 @@ const AxigonWebsite = () => {
         </section>
       )}
 
+      {/* ════════════════════════════════════════════
+          SIGNUP
+      ════════════════════════════════════════════ */}
       {currentPage === 'signup' && (
-        <section className="min-h-screen flex items-center justify-center pt-20 pb-10" style={{ backgroundColor: '#F7FAFF' }}>
-          <div className="w-full max-w-md px-6">
-            <div className="rounded-lg p-8 shadow-lg border bg-white" style={{ borderColor: '#E2E8F0' }}>
-              <h2 className="text-3xl font-bold mb-2 text-center" style={{ color: '#0B1220' }}>Create Account</h2>
-              <p className="text-center mb-8" style={{ color: '#475569' }}>Get started with Axigon AI</p>
-              {error && <div className="mb-4 p-3 rounded" style={{ backgroundColor: '#fee2e2', color: '#dc2626' }}>{error}</div>}
-              <form onSubmit={handleSignup} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-semibold mb-2" style={{ color: '#0B1220' }}>Full Name</label>
-                  <input 
-                    type="text" 
-                    placeholder="John Doe" 
-                    value={signupData.name} 
-                    onChange={(e) => setSignupData({...signupData, name: e.target.value})} 
-                    className="w-full px-4 py-3 rounded border outline-none focus:border-indigo-500" 
-                    style={{ borderColor: '#E2E8F0' }} 
-                    disabled={loading} 
-                  />
+        <section style={{ minHeight: '100vh', backgroundColor: '#06080F', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '80px 24px 40px' }}>
+          <div style={{ width: '100%', maxWidth: '420px' }}>
+            <div style={{ textAlign: 'center', marginBottom: '36px' }}>
+              <button onClick={() => setCurrentPage('company')} style={{ fontSize: '22px', fontWeight: 800, color: '#F1F5F9', background: 'none', border: 'none', cursor: 'pointer', marginBottom: '28px', display: 'inline-block' }}>
+                Axigon<span style={gradientText}>AI</span>
+              </button>
+              <h2 style={{ fontSize: '28px', fontWeight: 800, color: '#F1F5F9', marginBottom: '8px', letterSpacing: '-0.01em' }}>Create Account</h2>
+              <p style={{ color: '#94A3B8', fontSize: '15px', margin: 0 }}>Get started with Axigon AI</p>
+            </div>
+            <div style={{ backgroundColor: '#0F1A2E', border: '1px solid #1E2D45', borderRadius: '18px', padding: '36px', boxShadow: '0 40px 80px rgba(0,0,0,0.55)' }}>
+              {error && (
+                <div style={{ marginBottom: '20px', padding: '12px 16px', borderRadius: '8px', backgroundColor: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.28)', color: '#FCA5A5', fontSize: '14px' }}>
+                  {error}
                 </div>
-                <div>
-                  <label className="block text-sm font-semibold mb-2" style={{ color: '#0B1220' }}>Company Email</label>
-                  <input 
-                    type="email" 
-                    placeholder="you@company.com" 
-                    value={signupData.email} 
-                    onChange={(e) => setSignupData({...signupData, email: e.target.value})} 
-                    className="w-full px-4 py-3 rounded border outline-none focus:border-indigo-500" 
-                    style={{ borderColor: '#E2E8F0' }} 
-                    disabled={loading}  
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold mb-2" style={{ color: '#0B1220' }}>Company Name</label>
-                  <input 
-                    type="text" 
-                    placeholder="Your Company" 
-                    value={signupData.company} 
-                    onChange={(e) => setSignupData({...signupData, company: e.target.value})} 
-                    className="w-full px-4 py-3 rounded border outline-none focus:border-indigo-500" 
-                    style={{ borderColor: '#E2E8F0' }} 
-                    disabled={loading}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold mb-2" style={{ color: '#0B1220' }}>Password</label>
-                  <input 
-                    type="password" 
-                    placeholder="Create password (min 6 characters)" 
-                    value={signupData.password} 
-                    onChange={(e) => setSignupData({...signupData, password: e.target.value})} 
-                    className="w-full px-4 py-3 rounded border outline-none focus:border-indigo-500" 
-                    style={{ borderColor: '#E2E8F0' }} 
-                    disabled={loading}
-                  />
-                </div>
-                <label className="flex items-start gap-2 text-sm" style={{ color: '#475569' }}>
-                  <input type="checkbox" className="mt-1 rounded" required />
-                  <span>I agree to the Terms and Privacy Policy</span>
+              )}
+              <form onSubmit={handleSignup} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                {[
+                  { label: 'Full Name', type: 'text', placeholder: 'John Doe', field: 'name' },
+                  { label: 'Company Email', type: 'email', placeholder: 'you@company.com', field: 'email' },
+                  { label: 'Company Name', type: 'text', placeholder: 'Your Company', field: 'company' },
+                  { label: 'Password', type: 'password', placeholder: 'Min 6 characters', field: 'password' },
+                ].map(({ label, type, placeholder, field }) => (
+                  <div key={field}>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#94A3B8', marginBottom: '8px', letterSpacing: '0.08em', textTransform: 'uppercase' }}>{label}</label>
+                    <input type={type} placeholder={placeholder} value={signupData[field]} onChange={e => setSignupData({ ...signupData, [field]: e.target.value })} disabled={loading}
+                      style={inputStyle}
+                      onFocus={e => e.currentTarget.style.borderColor = '#8B5CF6'}
+                      onBlur={e => e.currentTarget.style.borderColor = '#1E2D45'}
+                    />
+                  </div>
+                ))}
+                <label style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', fontSize: '13px', color: '#94A3B8', cursor: 'pointer', lineHeight: 1.5 }}>
+                  <input type="checkbox" required style={{ marginTop: '2px', accentColor: '#8B5CF6', flexShrink: 0 }} />
+                  <span>I agree to the Terms of Service and Privacy Policy</span>
                 </label>
-                <button 
-                  type="submit" 
-                  className="w-full py-3 rounded font-semibold text-white transition-all hover:opacity-90" 
-                  style={{ backgroundColor: '#635BFF', opacity: loading ? 0.7 : 1 }}
-                >
-                  {loading ? 'Creating Account...' : 'Create Account'}
-                </button>
-                <p className="text-center text-sm" style={{ color: '#475569' }}>
-                  Already have an account? <button type="button" onClick={() => setCurrentPage('login')} className="font-semibold" style={{ color: '#635BFF' }}>Log in</button>
+                <button type="submit" disabled={loading}
+                  style={{ ...btnPrimary, padding: '13px', fontSize: '15px', width: '100%', marginTop: '4px', opacity: loading ? 0.6 : 1, cursor: loading ? 'not-allowed' : 'pointer' }}
+                  onMouseEnter={e => { if (!loading) btnPrimaryHover(e); }}
+                  onMouseLeave={e => { if (!loading) btnPrimaryLeave(e); }}
+                >{loading ? 'Creating Account...' : 'Create Account'}</button>
+                <p style={{ textAlign: 'center', fontSize: '14px', color: '#94A3B8', margin: 0 }}>
+                  Already have an account?{' '}
+                  <button type="button" onClick={() => setCurrentPage('login')} style={{ color: '#A78BFA', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: '14px' }}>Log in</button>
                 </p>
               </form>
             </div>
@@ -681,19 +922,117 @@ const AxigonWebsite = () => {
         </section>
       )}
 
-      <footer className="py-16 text-white" style={{ backgroundColor: '#071A2E' }}>
+      {/* ── FOOTER ── */}
+      <footer style={{ backgroundColor: '#080C16', padding: '64px 0 40px', borderTop: '1px solid #1E2D45' }}>
         <div className="max-w-7xl mx-auto px-6">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-10 mb-12">
-            {[{ h: 'Company', l: ['About', 'Careers', 'Press'] }, { h: 'Solutions', l: ['AI Agents', 'Consulting'] }, { h: 'Resources', l: ['Blog', 'Case Studies'] }, { h: 'Legal', l: ['Privacy', 'Terms'] }].map((c, i) => (
-              <div key={i}><h4 className="text-lg font-bold mb-6">{c.h}</h4><ul className="space-y-3" style={{ color: '#CBD5E1' }}>{c.l.map((link, j) => <li key={j}><button type="button" style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'inherit' }}>{link}</button></li>)}</ul></div>
+            {[
+              { h: 'Company', l: ['About', 'Careers', 'Press'] },
+              { h: 'Solutions', l: ['AI Agents', 'Consulting'] },
+              { h: 'Resources', l: ['Blog', 'Case Studies'] },
+              { h: 'Legal', l: ['Privacy', 'Terms'] }
+            ].map((c, i) => (
+              <div key={i}>
+                <h4 style={{ fontSize: '12px', fontWeight: 700, color: '#F1F5F9', marginBottom: '20px', letterSpacing: '0.1em', textTransform: 'uppercase' }}>{c.h}</h4>
+                <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  {c.l.map((link, j) => (
+                    <li key={j}>
+                      <button type="button"
+                        style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: '#4B6279', fontSize: '14px', transition: 'color 0.2s', fontFamily: 'inherit' }}
+                        onMouseEnter={e => e.currentTarget.style.color = '#94A3B8'}
+                        onMouseLeave={e => e.currentTarget.style.color = '#4B6279'}
+                      >{link}</button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             ))}
           </div>
-          <div className="pt-8 flex items-center justify-between" style={{ borderTop: '1px solid #1E293B' }}>
-            <button onClick={() => setCurrentPage('company')} className="text-2xl font-bold">Axigon<span style={{ color: '#635BFF' }}>AI</span></button>
-            <p className="text-sm" style={{ color: '#CBD5E1' }}>© 2026 Axigon AI</p>
+          <div style={{ paddingTop: '32px', borderTop: '1px solid #1E2D45', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
+            <button onClick={() => setCurrentPage('company')} style={{ fontSize: '20px', fontWeight: 800, color: '#F1F5F9', background: 'none', border: 'none', cursor: 'pointer' }}>
+              Axigon<span style={gradientText}>AI</span>
+            </button>
+            <p style={{ fontSize: '13px', color: '#4B6279', margin: 0 }}>© 2026 Axigon AI. All rights reserved.</p>
           </div>
         </div>
       </footer>
+
+      {/* ════════════════════════════════════════════
+          REQUEST DEMO MODAL
+      ════════════════════════════════════════════ */}
+      {showDemoModal && (
+        <div
+          onClick={e => { if (e.target === e.currentTarget) setShowDemoModal(false); }}
+          style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}
+        >
+          <div style={{ backgroundColor: '#0F1A2E', border: '1px solid #1E2D45', borderRadius: '18px', padding: '40px', width: '100%', maxWidth: '480px', boxShadow: '0 40px 80px rgba(0,0,0,0.7)', maxHeight: '90vh', overflowY: 'auto', position: 'relative' }}>
+            {/* Top accent line */}
+            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '3px', background: 'linear-gradient(90deg, #8B5CF6, #22D3EE)', borderRadius: '18px 18px 0 0' }} />
+
+            {/* Header */}
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '28px' }}>
+              <div>
+                <h2 style={{ fontSize: '22px', fontWeight: 800, color: '#F1F5F9', margin: '0 0 6px', letterSpacing: '-0.01em' }}>Request a Demo</h2>
+                <p style={{ fontSize: '14px', color: '#94A3B8', margin: 0 }}>Tell us about your use case and we'll be in touch.</p>
+              </div>
+              <button
+                onClick={() => setShowDemoModal(false)}
+                style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid #1E2D45', borderRadius: '8px', color: '#94A3B8', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0, marginLeft: '16px', fontSize: '16px', transition: 'all 0.2s' }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = '#8B5CF6'; e.currentTarget.style.color = '#F1F5F9'; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = '#1E2D45'; e.currentTarget.style.color = '#94A3B8'; }}
+              >✕</button>
+            </div>
+
+            <form onSubmit={handleDemoSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              {[
+                { label: 'Full Name', type: 'text', placeholder: 'Jane Doe', field: 'name' },
+                { label: 'Email', type: 'email', placeholder: 'you@company.com', field: 'email' },
+                { label: 'Phone Number', type: 'text', placeholder: '+1 (555) 000-0000', field: 'phone' },
+                { label: 'Company Name', type: 'text', placeholder: 'Acme Corp', field: 'company' },
+              ].map(({ label, type, placeholder, field }) => (
+                <div key={field}>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#94A3B8', marginBottom: '8px', letterSpacing: '0.08em', textTransform: 'uppercase' }}>{label}</label>
+                  <input
+                    type={type}
+                    placeholder={placeholder}
+                    value={demoForm[field]}
+                    onChange={e => setDemoForm({ ...demoForm, [field]: e.target.value })}
+                    required={field !== 'phone'}
+                    style={{ ...inputStyle }}
+                    onFocus={e => e.currentTarget.style.borderColor = '#8B5CF6'}
+                    onBlur={e => e.currentTarget.style.borderColor = '#1E2D45'}
+                  />
+                </div>
+              ))}
+
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#94A3B8', marginBottom: '8px', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                  Use Case
+                </label>
+                <textarea
+                  placeholder="Briefly describe your use case..."
+                  value={demoForm.useCase}
+                  onChange={e => setDemoForm({ ...demoForm, useCase: e.target.value.slice(0, 200) })}
+                  rows={4}
+                  style={{ ...inputStyle, resize: 'vertical', minHeight: '96px', lineHeight: 1.6 }}
+                  onFocus={e => e.currentTarget.style.borderColor = '#8B5CF6'}
+                  onBlur={e => e.currentTarget.style.borderColor = '#1E2D45'}
+                />
+                <p style={{ textAlign: 'right', fontSize: '12px', color: demoForm.useCase.length >= 190 ? '#F87171' : '#4B6279', marginTop: '4px', margin: '4px 0 0' }}>
+                  {demoForm.useCase.length}/200
+                </p>
+              </div>
+
+              <button
+                type="submit"
+                style={{ ...btnPrimary, padding: '13px', fontSize: '15px', width: '100%', marginTop: '4px' }}
+                onMouseEnter={btnPrimaryHover}
+                onMouseLeave={btnPrimaryLeave}
+              >Submit Request</button>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

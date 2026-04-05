@@ -50,5 +50,6 @@
   },
   "engines": {
     "node": "20.x"
-  }
+  },
+  "proxy": "http://localhost:5000"
 }
