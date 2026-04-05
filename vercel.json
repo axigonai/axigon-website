@@ -1,8 +1,24 @@
 {
   "version": 2,
-  "buildCommand": "react-scripts build",
-  "outputDirectory": "build",
-  "rewrites": [
-    { "source": "/((?!api/).*)", "destination": "/index.html" }
+  "builds": [
+    {
+      "src": "package.json",
+      "use": "@vercel/static-build",
+      "config": {
+        "distDir": "build"
+      }
+    },
+    {
+      "src": "api/**/*.js",
+      "use": "@vercel/node"
+    }
+  ],
+  "routes": [
+    { "src": "/api/auth/signup", "dest": "/api/auth/signup.js" },
+    { "src": "/api/auth/login", "dest": "/api/auth/login.js" },
+    { "src": "/api/users/profile", "dest": "/api/users/profile.js" },
+    { "src": "/api/agents", "dest": "/api/agents/index.js" },
+    { "src": "/api/agents/(.*)", "dest": "/api/agents/single.js" },
+    { "src": "/(.*)", "dest": "/index.html" }
   ]
 }
