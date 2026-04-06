@@ -6,6 +6,8 @@
     { "source": "/api/auth/me", "destination": "/api/auth/me.js" },
     { "source": "/api/auth/logout", "destination": "/api/auth/logout.js" },
     { "source": "/api/legal/chat", "destination": "/api/legal/chat.js" },
+    { "source": "/api/legal/conversations", "destination": "/api/legal/conversations.js" },
+    { "source": "/api/legal/messages", "destination": "/api/legal/messages.js" },
     { "source": "/api/users/profile", "destination": "/api/users/profile.js" },
     { "source": "/api/agents", "destination": "/api/agents/index.js" },
     { "source": "/api/agents/(.*)", "destination": "/api/agents/single.js" },

@@ -1,4 +1,7 @@
 const { verifyToken } = require('../../lib/auth');
+const { connectToDatabase } = require('../../lib/db');
+const LegalConversationModel = require('../../models/LegalConversation');
+const LegalMessageModel = require('../../models/LegalMessage');
 
 function parseCookies(cookieHeader) {
   const cookies = {};
@@ -31,13 +34,10 @@ module.exports = async (req, res) => {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  // ── Auth: read httpOnly cookie (same pattern as api/auth/me.js) ──
+  // ── Auth ──
   const cookies = parseCookies(req.headers.cookie);
   const token = cookies.token;
-
-  if (!token) {
-    return res.status(401).json({ error: 'Not authenticated' });
-  }
+  if (!token) return res.status(401).json({ error: 'Not authenticated' });
 
   let decoded;
   try {
@@ -46,8 +46,8 @@ module.exports = async (req, res) => {
     return res.status(401).json({ error: 'Invalid or expired token' });
   }
 
-  // ── Validate request body ──
-  const { message } = req.body || {};
+  // ── Validate body ──
+  const { message, conversationId } = req.body || {};
   if (!message || typeof message !== 'string' || !message.trim()) {
     return res.status(400).json({ error: 'message is required' });
   }
@@ -59,8 +59,27 @@ module.exports = async (req, res) => {
     return res.status(500).json({ error: 'API key not configured' });
   }
 
-  // ── Call Gemini ──
   try {
+    const { db } = await connectToDatabase();
+    const convModel = new LegalConversationModel(db);
+    const msgModel = new LegalMessageModel(db);
+    await convModel.createIndexes();
+    await msgModel.createIndexes();
+
+    // ── Create or reuse conversation ──
+    let convId = conversationId;
+    if (!convId) {
+      const conv = await convModel.create({
+        userId: decoded.userId,
+        title: message.trim(),
+      });
+      convId = conv._id.toString();
+    }
+
+    // ── Save user message ──
+    await msgModel.create({ conversationId: convId, role: 'user', content: message.trim() });
+
+    // ── Call Gemini ──
     const geminiRes = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
       {
@@ -87,7 +106,11 @@ module.exports = async (req, res) => {
       return res.status(502).json({ error: 'Empty response from LLM' });
     }
 
-    return res.status(200).json({ response });
+    // ── Save assistant message & update conversation timestamp ──
+    await msgModel.create({ conversationId: convId, role: 'assistant', content: response });
+    await convModel.touch(convId);
+
+    return res.status(200).json({ response, conversationId: convId });
 
   } catch (err) {
     console.error('Legal chat error:', err.message);
