@@ -19,6 +19,8 @@ const AxigonWebsite = () => {
   const [legalMessages, setLegalMessages] = useState([]);
   const [legalInput, setLegalInput] = useState('');
   const [legalLoading, setLegalLoading] = useState(false);
+  const [legalConversations, setLegalConversations] = useState([]);
+  const [legalConversationId, setLegalConversationId] = useState(null);
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 50);
@@ -162,13 +164,26 @@ const AxigonWebsite = () => {
     setShowDemoModal(false);
   };
 
+  const fetchLegalConversations = async () => {
+    try {
+      const res = await fetch('/api/legal/conversations', { credentials: 'include' });
+      if (res.ok) {
+        const data = await res.json();
+        setLegalConversations(data.conversations || []);
+      }
+    } catch {}
+  };
+
+  useEffect(() => {
+    if (currentPage === 'legal-gpt') fetchLegalConversations();
+  }, [currentPage]);
+
   const handleLegalSend = async (e) => {
     e.preventDefault();
     const msg = legalInput.trim();
     if (!msg || legalLoading) return;
 
-    const userMsg = { role: 'user', text: msg };
-    setLegalMessages(prev => [...prev, userMsg]);
+    setLegalMessages(prev => [...prev, { role: 'user', text: msg }]);
     setLegalInput('');
     setLegalLoading(true);
 
@@ -177,11 +192,13 @@ const AxigonWebsite = () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ message: msg }),
+        body: JSON.stringify({ message: msg, conversationId: legalConversationId }),
       });
       const data = await res.json();
       const reply = data.response || data.error || 'No response received.';
+      if (data.conversationId) setLegalConversationId(data.conversationId);
       setLegalMessages(prev => [...prev, { role: 'assistant', text: reply }]);
+      fetchLegalConversations();
     } catch {
       setLegalMessages(prev => [...prev, { role: 'assistant', text: 'Error reaching the server. Please try again.' }]);
     } finally {
@@ -736,29 +753,69 @@ const AxigonWebsite = () => {
           LEGAL GPT
       ════════════════════════════════════════════ */}
       {currentPage === 'legal-gpt' && (
-        <section style={{ minHeight: '100vh', backgroundColor: '#06080F', paddingTop: '80px', display: 'flex', flexDirection: 'column' }}>
-          <div style={{ maxWidth: '800px', width: '100%', margin: '0 auto', padding: '32px 24px', display: 'flex', flexDirection: 'column', flex: 1 }}>
+        <section style={{ minHeight: '100vh', backgroundColor: '#06080F', paddingTop: '64px', display: 'flex' }}>
 
-            {/* Header */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '28px' }}>
-              <button
-                onClick={() => setCurrentPage('dashboard')}
-                style={{ background: '#0F1A2E', border: '1px solid #1E2D45', borderRadius: '8px', color: '#94A3B8', padding: '8px 16px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s' }}
-                onMouseEnter={e => { e.currentTarget.style.borderColor = '#8B5CF6'; e.currentTarget.style.color = '#F1F5F9'; }}
-                onMouseLeave={e => { e.currentTarget.style.borderColor = '#1E2D45'; e.currentTarget.style.color = '#94A3B8'; }}
-              >← Back</button>
-              <div>
-                <h1 style={{ fontSize: '22px', fontWeight: 800, color: '#F1F5F9', margin: 0, letterSpacing: '-0.01em' }}>
-                  Legal <span style={{ background: 'linear-gradient(135deg, #8B5CF6, #22D3EE)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>GPT</span>
-                </h1>
-                <p style={{ fontSize: '13px', color: '#4B6279', margin: 0 }}>AI legal assistant for Indian businesses</p>
+          {/* ── Sidebar ── */}
+          <div style={{ width: '250px', flexShrink: 0, backgroundColor: '#080C16', borderRight: '1px solid #1E2D45', display: 'flex', flexDirection: 'column', height: 'calc(100vh - 64px)', position: 'sticky', top: '64px' }}>
+
+            {/* Sidebar header */}
+            <div style={{ padding: '20px 16px 12px', borderBottom: '1px solid #1E2D45' }}>
+              <button onClick={() => setCurrentPage('dashboard')}
+                style={{ background: 'none', border: 'none', color: '#4B6279', fontSize: '12px', fontWeight: 600, cursor: 'pointer', padding: 0, marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '6px', transition: 'color 0.2s' }}
+                onMouseEnter={e => e.currentTarget.style.color = '#94A3B8'}
+                onMouseLeave={e => e.currentTarget.style.color = '#4B6279'}
+              >← Dashboard</button>
+              <div style={{ marginBottom: '4px' }}>
+                <span style={{ fontSize: '16px', fontWeight: 800, color: '#F1F5F9' }}>Legal </span>
+                <span style={{ fontSize: '16px', fontWeight: 800, background: 'linear-gradient(135deg, #8B5CF6, #22D3EE)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>GPT</span>
               </div>
+              <button
+                onClick={() => { setLegalMessages([]); setLegalConversationId(null); setLegalInput(''); }}
+                style={{ width: '100%', marginTop: '12px', padding: '9px', borderRadius: '8px', background: 'linear-gradient(135deg, #8B5CF6, #6366F1)', color: 'white', border: 'none', fontWeight: 700, fontSize: '13px', cursor: 'pointer', transition: 'opacity 0.2s' }}
+                onMouseEnter={e => e.currentTarget.style.opacity = '0.85'}
+                onMouseLeave={e => e.currentTarget.style.opacity = '1'}
+              >+ New Chat</button>
             </div>
 
+            {/* Conversation list */}
+            <div style={{ flex: 1, overflowY: 'auto', padding: '8px' }}>
+              {legalConversations.length === 0 && (
+                <p style={{ color: '#2D3F55', fontSize: '12px', textAlign: 'center', marginTop: '24px', padding: '0 8px' }}>No conversations yet</p>
+              )}
+              {legalConversations.map(conv => {
+                const isActive = legalConversationId === conv._id;
+                const date = new Date(conv.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                return (
+                  <button key={conv._id}
+                    onClick={async () => {
+                      setLegalConversationId(conv._id);
+                      try {
+                        const res = await fetch(`/api/legal/messages?conversationId=${conv._id}`, { credentials: 'include' });
+                        const data = await res.json();
+                        setLegalMessages((data.messages || []).map(m => ({ role: m.role, text: m.content })));
+                      } catch {}
+                    }}
+                    style={{ width: '100%', textAlign: 'left', padding: '10px 12px', borderRadius: '8px', border: 'none', backgroundColor: isActive ? 'rgba(139,92,246,0.15)' : 'transparent', cursor: 'pointer', transition: 'background-color 0.15s', marginBottom: '2px', outline: isActive ? '1px solid rgba(139,92,246,0.35)' : 'none' }}
+                    onMouseEnter={e => { if (!isActive) e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.04)'; }}
+                    onMouseLeave={e => { if (!isActive) e.currentTarget.style.backgroundColor = 'transparent'; }}
+                  >
+                    <div style={{ fontSize: '13px', fontWeight: 500, color: isActive ? '#C4B5FD' : '#94A3B8', marginBottom: '3px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {conv.title.length > 35 ? conv.title.slice(0, 35) + '…' : conv.title}
+                    </div>
+                    <div style={{ fontSize: '11px', color: '#2D3F55' }}>{date}</div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* ── Chat area ── */}
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', height: 'calc(100vh - 64px)', overflow: 'hidden' }}>
+
             {/* Messages */}
-            <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '20px', minHeight: '400px', maxHeight: '60vh', padding: '4px 0' }}>
+            <div style={{ flex: 1, overflowY: 'auto', padding: '32px 40px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
               {legalMessages.length === 0 && (
-                <div style={{ textAlign: 'center', marginTop: '60px' }}>
+                <div style={{ textAlign: 'center', marginTop: '80px' }}>
                   <div style={{ width: '56px', height: '56px', borderRadius: '14px', background: 'rgba(139,92,246,0.12)', border: '1px solid rgba(139,92,246,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', fontSize: '22px' }}>⚖️</div>
                   <p style={{ color: '#4B6279', fontSize: '15px', marginBottom: '8px' }}>Ask anything about Indian business law</p>
                   <p style={{ color: '#2D3F55', fontSize: '13px' }}>GST, contracts, compliance, labour law, IP, and more</p>
@@ -767,49 +824,41 @@ const AxigonWebsite = () => {
               {legalMessages.map((msg, i) => (
                 <div key={i} style={{ display: 'flex', justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start' }}>
                   <div style={{
-                    maxWidth: '75%',
-                    padding: '12px 16px',
+                    maxWidth: '72%', padding: '12px 16px',
                     borderRadius: msg.role === 'user' ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
                     backgroundColor: msg.role === 'user' ? '#8B5CF6' : '#0F1A2E',
                     border: msg.role === 'user' ? 'none' : '1px solid #1E2D45',
-                    color: '#F1F5F9',
-                    fontSize: '14px',
-                    lineHeight: 1.7,
-                    whiteSpace: 'pre-wrap',
-                  }}>
-                    {msg.text}
-                  </div>
+                    color: '#F1F5F9', fontSize: '14px', lineHeight: 1.7, whiteSpace: 'pre-wrap',
+                  }}>{msg.text}</div>
                 </div>
               ))}
               {legalLoading && (
                 <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
-                  <div style={{ padding: '12px 18px', borderRadius: '16px 16px 16px 4px', backgroundColor: '#0F1A2E', border: '1px solid #1E2D45', color: '#4B6279', fontSize: '14px' }}>
-                    Thinking...
-                  </div>
+                  <div style={{ padding: '12px 18px', borderRadius: '16px 16px 16px 4px', backgroundColor: '#0F1A2E', border: '1px solid #1E2D45', color: '#4B6279', fontSize: '14px' }}>Thinking...</div>
                 </div>
               )}
             </div>
 
             {/* Input */}
-            <form onSubmit={handleLegalSend} style={{ display: 'flex', gap: '10px' }}>
-              <input
-                type="text"
-                placeholder="Ask a legal question..."
-                value={legalInput}
-                onChange={e => setLegalInput(e.target.value)}
-                disabled={legalLoading}
-                style={{ flex: 1, padding: '13px 16px', borderRadius: '10px', border: '1px solid #1E2D45', backgroundColor: '#0F1A2E', color: '#F1F5F9', fontSize: '14px', outline: 'none', fontFamily: 'inherit', opacity: legalLoading ? 0.6 : 1, transition: 'border-color 0.2s' }}
-                onFocus={e => e.currentTarget.style.borderColor = '#8B5CF6'}
-                onBlur={e => e.currentTarget.style.borderColor = '#1E2D45'}
-              />
-              <button
-                type="submit"
-                disabled={legalLoading || !legalInput.trim()}
-                style={{ padding: '13px 22px', borderRadius: '10px', background: 'linear-gradient(135deg, #8B5CF6, #6366F1)', color: 'white', border: 'none', fontWeight: 700, fontSize: '14px', cursor: legalLoading || !legalInput.trim() ? 'not-allowed' : 'pointer', opacity: legalLoading || !legalInput.trim() ? 0.5 : 1, transition: 'opacity 0.2s', whiteSpace: 'nowrap' }}
-              >Send</button>
-            </form>
-
+            <div style={{ padding: '20px 40px', borderTop: '1px solid #1E2D45', backgroundColor: '#06080F' }}>
+              <form onSubmit={handleLegalSend} style={{ display: 'flex', gap: '10px' }}>
+                <input
+                  type="text"
+                  placeholder="Ask a legal question..."
+                  value={legalInput}
+                  onChange={e => setLegalInput(e.target.value)}
+                  disabled={legalLoading}
+                  style={{ flex: 1, padding: '13px 16px', borderRadius: '10px', border: '1px solid #1E2D45', backgroundColor: '#0F1A2E', color: '#F1F5F9', fontSize: '14px', outline: 'none', fontFamily: 'inherit', opacity: legalLoading ? 0.6 : 1, transition: 'border-color 0.2s' }}
+                  onFocus={e => e.currentTarget.style.borderColor = '#8B5CF6'}
+                  onBlur={e => e.currentTarget.style.borderColor = '#1E2D45'}
+                />
+                <button type="submit" disabled={legalLoading || !legalInput.trim()}
+                  style={{ padding: '13px 22px', borderRadius: '10px', background: 'linear-gradient(135deg, #8B5CF6, #6366F1)', color: 'white', border: 'none', fontWeight: 700, fontSize: '14px', cursor: legalLoading || !legalInput.trim() ? 'not-allowed' : 'pointer', opacity: legalLoading || !legalInput.trim() ? 0.5 : 1, transition: 'opacity 0.2s', whiteSpace: 'nowrap' }}
+                >Send</button>
+              </form>
+            </div>
           </div>
+
         </section>
       )}
 
