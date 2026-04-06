@@ -53,37 +53,35 @@ module.exports = async (req, res) => {
   }
 
   // ── Check env ──
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+  const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
-    console.error('ANTHROPIC_API_KEY not set');
+    console.error('GEMINI_API_KEY not set');
     return res.status(500).json({ error: 'API key not configured' });
   }
 
-  // ── Call Anthropic ──
+  // ── Call Gemini ──
   try {
-    const anthropicRes = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-        'content-type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 1024,
-        system: SYSTEM_PROMPT,
-        messages: [{ role: 'user', content: message.trim() }],
-      }),
-    });
+    const geminiRes = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
+          contents: [{ role: 'user', parts: [{ text: message.trim() }] }],
+          generationConfig: { maxOutputTokens: 1024 },
+        }),
+      }
+    );
 
-    if (!anthropicRes.ok) {
-      const err = await anthropicRes.text();
-      console.error('Anthropic API error:', anthropicRes.status, err);
+    if (!geminiRes.ok) {
+      const err = await geminiRes.text();
+      console.error('Gemini API error:', geminiRes.status, err);
       return res.status(502).json({ error: 'LLM request failed', detail: err });
     }
 
-    const data = await anthropicRes.json();
-    const response = data.content?.[0]?.text;
+    const data = await geminiRes.json();
+    const response = data.candidates?.[0]?.content?.parts?.[0]?.text;
 
     if (!response) {
       return res.status(502).json({ error: 'Empty response from LLM' });
