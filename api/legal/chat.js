@@ -1,0 +1,98 @@
+const { verifyToken } = require('../../lib/auth');
+
+function parseCookies(cookieHeader) {
+  const cookies = {};
+  if (!cookieHeader) return cookies;
+  cookieHeader.split(';').forEach((cookie) => {
+    const [key, ...val] = cookie.trim().split('=');
+    cookies[key.trim()] = val.join('=');
+  });
+  return cookies;
+}
+
+const SYSTEM_PROMPT =
+  'You are Axigon Legal GPT, a specialized AI legal assistant for Indian businesses. ' +
+  'Provide structured responses with: Summary, Detail, and Action Items. ' +
+  'Always add: "This is AI-generated guidance. Consult a qualified lawyer for formal legal advice."';
+
+module.exports = async (req, res) => {
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  const origin = req.headers.origin;
+  if (origin) res.setHeader('Access-Control-Allow-Origin', origin);
+  res.setHeader('Access-Control-Allow-Methods', 'POST,OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+  if (req.method === 'OPTIONS') {
+    res.status(200).end();
+    return;
+  }
+
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  // ── Auth: read httpOnly cookie (same pattern as api/auth/me.js) ──
+  const cookies = parseCookies(req.headers.cookie);
+  const token = cookies.token;
+
+  if (!token) {
+    return res.status(401).json({ error: 'Not authenticated' });
+  }
+
+  let decoded;
+  try {
+    decoded = verifyToken(token);
+  } catch {
+    return res.status(401).json({ error: 'Invalid or expired token' });
+  }
+
+  // ── Validate request body ──
+  const { message } = req.body || {};
+  if (!message || typeof message !== 'string' || !message.trim()) {
+    return res.status(400).json({ error: 'message is required' });
+  }
+
+  // ── Check env ──
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) {
+    console.error('ANTHROPIC_API_KEY not set');
+    return res.status(500).json({ error: 'API key not configured' });
+  }
+
+  // ── Call Anthropic ──
+  try {
+    const anthropicRes = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1024,
+        system: SYSTEM_PROMPT,
+        messages: [{ role: 'user', content: message.trim() }],
+      }),
+    });
+
+    if (!anthropicRes.ok) {
+      const err = await anthropicRes.text();
+      console.error('Anthropic API error:', anthropicRes.status, err);
+      return res.status(502).json({ error: 'LLM request failed', detail: err });
+    }
+
+    const data = await anthropicRes.json();
+    const response = data.content?.[0]?.text;
+
+    if (!response) {
+      return res.status(502).json({ error: 'Empty response from LLM' });
+    }
+
+    return res.status(200).json({ response });
+
+  } catch (err) {
+    console.error('Legal chat error:', err.message);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+};
