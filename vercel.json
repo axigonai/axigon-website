@@ -10,6 +10,10 @@
     { "source": "/api/legal/messages", "destination": "/api/legal/messages.js" },
     { "source": "/api/users/profile", "destination": "/api/users/profile.js" },
     { "source": "/api/finance/upload", "destination": "/api/finance/upload.js" },
+    { "source": "/api/finance/chat", "destination": "/api/finance/chat.js" },
+    { "source": "/api/finance/conversations", "destination": "/api/finance/conversations.js" },
+    { "source": "/api/finance/messages", "destination": "/api/finance/messages.js" },
+    { "source": "/api/finance/profile", "destination": "/api/finance/profile.js" },
     { "source": "/api/agents", "destination": "/api/agents/index.js" },
     { "source": "/api/agents/(.*)", "destination": "/api/agents/single.js" },
     { "source": "/(.*)", "destination": "/index.html" }
