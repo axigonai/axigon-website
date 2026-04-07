@@ -32,8 +32,9 @@ module.exports = async (req, res) => {
     console.log('- JWT_SECRET exists:', !!process.env.JWT_SECRET);
     console.log('- NODE_ENV:', process.env.NODE_ENV);
 
-    const { name, email, company, password } = req.body;
-    console.log('Request body received:', { name, email, company, passwordLength: password?.length });
+    const { name, email, company, password, accountType } = req.body;
+    const resolvedAccountType = accountType === 'personal' ? 'personal' : 'business';
+    console.log('Request body received:', { name, email, company, passwordLength: password?.length, accountType: resolvedAccountType });
 
     // Validation
     if (!name || !email || !company || !password) {
@@ -120,7 +121,7 @@ module.exports = async (req, res) => {
     console.log('Creating user in database...');
     let user;
     try {
-      user = await userModel.create({ name, email, company, password });
+      user = await userModel.create({ name, email, company, password, accountType: resolvedAccountType });
       console.log('✓ User created successfully, ID:', user._id);
     } catch (userError) {
       console.error('User creation failed:');
@@ -141,11 +142,11 @@ module.exports = async (req, res) => {
     console.log('Generating JWT token...');
     let token;
     try {
-      token = generateToken(user._id.toString(), user.email);
+      token = generateToken(user._id.toString(), user.email, resolvedAccountType);
       console.log('✓ JWT token generated successfully');
     } catch (tokenError) {
       console.error('Token generation failed:', tokenError.message);
-      return res.status(500).json({ 
+      return res.status(500).json({
         error: 'Authentication token generation failed',
         details: tokenError.message
       });
@@ -160,7 +161,8 @@ module.exports = async (req, res) => {
         id: user._id,
         name: user.name,
         email: user.email,
-        company: user.company
+        company: user.company,
+        accountType: user.accountType,
       },
       token
     });

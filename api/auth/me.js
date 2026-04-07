@@ -57,6 +57,7 @@ module.exports = async (req, res) => {
         name: user.name,
         email: user.email,
         company: user.company,
+        accountType: user.accountType || 'business',
       },
     });
   } catch (error) {

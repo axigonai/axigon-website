@@ -16,7 +16,7 @@ class UserModel {
   /**
    * Create a new user
    */
-  async create({ name, email, company, password }) {
+  async create({ name, email, company, password, accountType = 'business' }) {
     // Check if user already exists
     const existingUser = await this.collection.findOne({ email });
     if (existingUser) {
@@ -32,6 +32,7 @@ class UserModel {
       email,
       company,
       password: hashedPassword,
+      accountType,
       createdAt: new Date(),
       updatedAt: new Date()
     };

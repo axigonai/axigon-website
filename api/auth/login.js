@@ -127,7 +127,7 @@ module.exports = async (req, res) => {
     console.log('Generating JWT token...');
     let token;
     try {
-      token = generateToken(user._id.toString(), user.email);
+      token = generateToken(user._id.toString(), user.email, user.accountType || 'business');
       console.log('✓ JWT token generated successfully');
     } catch (tokenError) {
       console.error('Token generation failed:', tokenError.message);
@@ -148,7 +148,8 @@ module.exports = async (req, res) => {
         id: user._id,
         name: user.name,
         email: user.email,
-        company: user.company
+        company: user.company,
+        accountType: user.accountType || 'business',
       },
     });
 
