@@ -23,6 +23,7 @@ const AxigonWebsite = () => {
   const [legalConversationId, setLegalConversationId] = useState(null);
   const [signupStep, setSignupStep] = useState('form'); // 'form' | 'account-type'
   const [selectedAccountType, setSelectedAccountType] = useState(null);
+  const [personalToastIndex, setPersonalToastIndex] = useState(null);
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 50);
@@ -757,6 +758,73 @@ const AxigonWebsite = () => {
                 );
               })}
             </div>
+          </div>
+        </section>
+      )}
+
+      {/* ════════════════════════════════════════════
+          PERSONAL DASHBOARD
+      ════════════════════════════════════════════ */}
+      {currentPage === 'personal-dashboard' && (
+        <section style={{ minHeight: '100vh', backgroundColor: '#06080F', paddingTop: '80px' }}>
+          <div className="max-w-7xl mx-auto px-6 py-12">
+
+            {/* Header */}
+            <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: '48px', flexWrap: 'wrap', gap: '16px' }}>
+              <div>
+                <p style={sectionLabel('#22D3EE')}>Personal Dashboard</p>
+                <h1 style={{ fontSize: '40px', fontWeight: 800, color: '#F1F5F9', letterSpacing: '-0.02em', margin: 0 }}>Your Personal AI</h1>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                <span style={{ color: '#94A3B8', fontSize: '14px' }}>Hi, {user?.name}!</span>
+                {user?.accountType === 'personal' && (
+                  <button
+                    onClick={() => setCurrentPage('dashboard')}
+                    style={{ background: 'none', border: '1px solid #1E2D45', borderRadius: '8px', color: '#4B6279', padding: '8px 16px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s' }}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor = '#22D3EE'; e.currentTarget.style.color = '#22D3EE'; }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = '#1E2D45'; e.currentTarget.style.color = '#4B6279'; }}
+                  >Switch to Business →</button>
+                )}
+                <button onClick={handleLogout}
+                  style={{ backgroundColor: '#0F1A2E', color: '#94A3B8', border: '1px solid #1E2D45', padding: '10px 22px', borderRadius: '8px', fontWeight: 600, fontSize: '14px', cursor: 'pointer', transition: 'all 0.2s' }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = '#8B5CF6'; e.currentTarget.style.color = '#F1F5F9'; }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = '#1E2D45'; e.currentTarget.style.color = '#94A3B8'; }}
+                >Sign Out</button>
+              </div>
+            </div>
+
+            {/* Agent tiles */}
+            <div className="grid md:grid-cols-2 gap-5">
+              {[
+                { emoji: '💰', name: 'Life Finance', color: '#10B981', desc: 'Understand your money, plan your future' },
+                { emoji: '🚀', name: 'Career Co-Pilot', color: '#8B5CF6', desc: 'Close skill gaps, negotiate better, grow faster' },
+                { emoji: '🧠', name: 'Decision Intelligence', color: '#22D3EE', desc: "Model life's big decisions with real numbers" },
+                { emoji: '❤️', name: 'Health & Habits', color: '#F43F5E', desc: 'Connect your habits to your life outcomes' },
+              ].map((a, i) => (
+                <div key={i} style={{ ...darkCard, padding: '28px', position: 'relative', overflow: 'hidden' }}
+                  onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.borderColor = `${a.color}60`; e.currentTarget.style.boxShadow = `0 20px 48px rgba(0,0,0,0.5), 0 0 0 1px ${a.color}30`; }}
+                  onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.borderColor = '#1E2D45'; e.currentTarget.style.boxShadow = 'none'; }}
+                >
+                  <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '2px', backgroundColor: a.color }} />
+                  <div style={{ width: '44px', height: '44px', borderRadius: '10px', backgroundColor: `${a.color}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px', border: `1px solid ${a.color}30`, fontSize: '22px' }}>
+                    {a.emoji}
+                  </div>
+                  <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#F1F5F9', marginBottom: '12px' }}>{a.name}</h3>
+                  <p style={{ fontSize: '14px', color: '#94A3B8', lineHeight: 1.65, marginBottom: '20px' }}>{a.desc}</p>
+                  {personalToastIndex === i ? (
+                    <span style={{ fontSize: '13px', color: '#A78BFA', fontStyle: 'italic' }}>Coming soon — we're building this for you</span>
+                  ) : (
+                    <button
+                      onClick={() => { setPersonalToastIndex(i); setTimeout(() => setPersonalToastIndex(null), 3000); }}
+                      style={{ fontSize: '13px', fontWeight: 600, color: a.color, background: 'none', border: 'none', padding: 0, cursor: 'pointer', transition: 'opacity 0.2s' }}
+                      onMouseEnter={e => e.currentTarget.style.opacity = '0.65'}
+                      onMouseLeave={e => e.currentTarget.style.opacity = '1'}
+                    >Launch Agent →</button>
+                  )}
+                </div>
+              ))}
+            </div>
+
           </div>
         </section>
       )}
