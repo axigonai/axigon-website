@@ -108,13 +108,34 @@ async function handleMessages(req, res, decoded) {
   return res.status(200).json({ messages });
 }
 
+async function handleDeleteConversation(req, res, decoded) {
+  const { conversationId } = req.body || {};
+  if (!conversationId) return res.status(400).json({ error: 'conversationId is required' });
+
+  const { db } = await connectToDatabase();
+  const convModel = new LegalConversationModel(db);
+  const msgModel = new LegalMessageModel(db);
+
+  // Verify ownership
+  const conv = await convModel.collection.findOne({
+    _id: new (require('mongodb').ObjectId)(conversationId),
+    userId: decoded.userId,
+  });
+  if (!conv) return res.status(403).json({ error: 'Forbidden' });
+
+  await convModel.collection.deleteOne({ _id: conv._id });
+  await msgModel.collection.deleteMany({ conversationId });
+
+  return res.status(200).json({ success: true });
+}
+
 // ─── Main handler ────────────────────────────────────────────────────────────
 
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Credentials', 'true');
   const origin = req.headers.origin;
   if (origin) res.setHeader('Access-Control-Allow-Origin', origin);
-  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,DELETE,OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
   if (req.method === 'OPTIONS') { res.status(200).end(); return; }
@@ -125,9 +146,10 @@ module.exports = async (req, res) => {
   const { action } = req.query;
 
   try {
-    if (action === 'chat'          && req.method === 'POST') return await handleChat(req, res, decoded);
-    if (action === 'conversations' && req.method === 'GET')  return await handleConversations(req, res, decoded);
-    if (action === 'messages'      && req.method === 'GET')  return await handleMessages(req, res, decoded);
+    if (action === 'chat'                && req.method === 'POST')   return await handleChat(req, res, decoded);
+    if (action === 'conversations'       && req.method === 'GET')    return await handleConversations(req, res, decoded);
+    if (action === 'messages'            && req.method === 'GET')    return await handleMessages(req, res, decoded);
+    if (action === 'delete-conversation' && req.method === 'DELETE') return await handleDeleteConversation(req, res, decoded);
 
     return res.status(400).json({ error: 'Unknown action or method' });
   } catch (err) {

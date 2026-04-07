@@ -294,13 +294,109 @@ async function handleProfile(req, res, decoded) {
   return res.status(200).json({ profile: profile || null });
 }
 
+async function handleDeleteConversation(req, res, decoded) {
+  const { conversationId } = await readJsonBody(req);
+  if (!conversationId) return res.status(400).json({ error: 'conversationId is required' });
+
+  const { db } = await connectToDatabase();
+  const conv = await db.collection('finance_conversations').findOne({
+    _id: new ObjectId(conversationId), userId: decoded.userId,
+  });
+  if (!conv) return res.status(403).json({ error: 'Forbidden' });
+
+  await db.collection('finance_conversations').deleteOne({ _id: conv._id });
+  await db.collection('finance_messages').deleteMany({ conversationId });
+
+  return res.status(200).json({ success: true });
+}
+
+async function handleDocuments(req, res, decoded) {
+  const { db } = await connectToDatabase();
+  const docs = await db.collection('finance_documents')
+    .find({ userId: decoded.userId })
+    .sort({ uploadedAt: -1 })
+    .project({ _id: 1, fileName: 1, documentType: 1, uploadedAt: 1, 'extractedData.period': 1 })
+    .toArray();
+
+  // Build a summary string per doc
+  const documents = docs.map(d => ({
+    _id: d._id,
+    fileName: d.fileName,
+    documentType: d.documentType,
+    uploadedAt: d.uploadedAt,
+    summary: d.documentType === 'salary_slip'
+      ? `Salary slip${d.extractedData?.period ? ' — ' + d.extractedData.period : ''}`
+      : d.documentType === 'bank_statement'
+        ? `Bank statement${d.extractedData?.period ? ' — ' + d.extractedData.period : ''}`
+        : `Document${d.extractedData?.period ? ' — ' + d.extractedData.period : ''}`,
+  }));
+
+  return res.status(200).json({ documents });
+}
+
+async function handleDeleteDocument(req, res, decoded) {
+  const { documentId } = await readJsonBody(req);
+  if (!documentId) return res.status(400).json({ error: 'documentId is required' });
+
+  const { db } = await connectToDatabase();
+  const userId = decoded.userId;
+
+  // Verify ownership
+  const doc = await db.collection('finance_documents').findOne({
+    _id: new ObjectId(documentId), userId,
+  });
+  if (!doc) return res.status(403).json({ error: 'Forbidden' });
+
+  await db.collection('finance_documents').deleteOne({ _id: doc._id });
+
+  // Recalculate profile from remaining documents
+  const remaining = await db.collection('finance_documents')
+    .find({ userId })
+    .sort({ uploadedAt: -1 })
+    .toArray();
+
+  if (remaining.length === 0) {
+    await db.collection('finance_profiles').deleteOne({ userId });
+    return res.status(200).json({ success: true, profile: null });
+  }
+
+  // Aggregate: use most recent values across all remaining docs
+  let monthlyIncome = null, annualIncome = null, totalExpenses = null, currentBalance = null;
+  for (const d of remaining) {
+    const e = d.extractedData || {};
+    if (monthlyIncome  == null && e.income?.monthly)   monthlyIncome  = e.income.monthly;
+    if (annualIncome   == null && e.income?.annual)    annualIncome   = e.income.annual;
+    if (totalExpenses  == null && e.expenses?.total)   totalExpenses  = e.expenses.total;
+    if (currentBalance == null && e.balance != null)   currentBalance = e.balance;
+  }
+
+  const profileUpdate = {
+    userId,
+    documentsCount: remaining.length,
+    lastUpdated: new Date(),
+  };
+  if (monthlyIncome  != null) profileUpdate.monthlyIncome  = monthlyIncome;
+  if (annualIncome   != null) profileUpdate.annualIncome   = annualIncome;
+  if (totalExpenses  != null) profileUpdate.totalExpenses  = totalExpenses;
+  if (currentBalance != null) profileUpdate.currentBalance = currentBalance;
+
+  await db.collection('finance_profiles').updateOne(
+    { userId },
+    { $set: profileUpdate, $setOnInsert: { createdAt: new Date() } },
+    { upsert: true }
+  );
+
+  const updatedProfile = await db.collection('finance_profiles').findOne({ userId });
+  return res.status(200).json({ success: true, profile: updatedProfile });
+}
+
 // ─── Main handler ────────────────────────────────────────────────────────────
 
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Credentials', 'true');
   const origin = req.headers.origin;
   if (origin) res.setHeader('Access-Control-Allow-Origin', origin);
-  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,DELETE,OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
   if (req.method === 'OPTIONS') { res.status(200).end(); return; }
@@ -311,11 +407,14 @@ module.exports = async (req, res) => {
   const { action } = req.query;
 
   try {
-    if (action === 'chat'          && req.method === 'POST') return await handleChat(req, res, decoded);
-    if (action === 'upload'        && req.method === 'POST') return await handleUpload(req, res, decoded);
-    if (action === 'conversations' && req.method === 'GET')  return await handleConversations(req, res, decoded);
-    if (action === 'messages'      && req.method === 'GET')  return await handleMessages(req, res, decoded);
-    if (action === 'profile'       && req.method === 'GET')  return await handleProfile(req, res, decoded);
+    if (action === 'chat'                && req.method === 'POST')   return await handleChat(req, res, decoded);
+    if (action === 'upload'              && req.method === 'POST')   return await handleUpload(req, res, decoded);
+    if (action === 'conversations'       && req.method === 'GET')    return await handleConversations(req, res, decoded);
+    if (action === 'messages'            && req.method === 'GET')    return await handleMessages(req, res, decoded);
+    if (action === 'profile'             && req.method === 'GET')    return await handleProfile(req, res, decoded);
+    if (action === 'delete-conversation' && req.method === 'DELETE') return await handleDeleteConversation(req, res, decoded);
+    if (action === 'documents'           && req.method === 'GET')    return await handleDocuments(req, res, decoded);
+    if (action === 'delete-document'     && req.method === 'DELETE') return await handleDeleteDocument(req, res, decoded);
 
     return res.status(400).json({ error: 'Unknown action or method' });
   } catch (err) {
