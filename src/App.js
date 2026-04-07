@@ -209,7 +209,7 @@ const AxigonWebsite = () => {
 
   const fetchFinanceConversations = async () => {
     try {
-      const res = await fetch('/api/finance/conversations', { credentials: 'include' });
+      const res = await fetch('/api/finance?action=conversations', { credentials: 'include' });
       if (res.ok) {
         const data = await res.json();
         setFinanceConversations(data.conversations || []);
@@ -219,7 +219,7 @@ const AxigonWebsite = () => {
 
   const fetchFinanceProfile = async () => {
     try {
-      const res = await fetch('/api/finance/profile', { credentials: 'include' });
+      const res = await fetch('/api/finance?action=profile', { credentials: 'include' });
       if (res.ok) {
         const data = await res.json();
         setFinanceProfile(data.profile || null);
@@ -235,7 +235,7 @@ const AxigonWebsite = () => {
     setFinanceInput('');
     setFinanceLoading(true);
     try {
-      const res = await fetch('/api/finance/chat', {
+      const res = await fetch('/api/finance?action=chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -261,7 +261,7 @@ const AxigonWebsite = () => {
       const formData = new FormData();
       formData.append('file', file);
       setFinanceUploadStatus('processing');
-      const res = await fetch('/api/finance/upload', {
+      const res = await fetch('/api/finance?action=upload', {
         method: 'POST',
         credentials: 'include',
         body: formData,
@@ -286,7 +286,7 @@ const AxigonWebsite = () => {
 
   const fetchLegalConversations = async () => {
     try {
-      const res = await fetch('/api/legal/conversations', { credentials: 'include' });
+      const res = await fetch('/api/legal?action=conversations', { credentials: 'include' });
       if (res.ok) {
         const data = await res.json();
         setLegalConversations(data.conversations || []);
@@ -315,7 +315,7 @@ const AxigonWebsite = () => {
     setLegalLoading(true);
 
     try {
-      const res = await fetch('/api/legal/chat', {
+      const res = await fetch('/api/legal?action=chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -982,7 +982,7 @@ const AxigonWebsite = () => {
                     onClick={async () => {
                       setFinanceConversationId(conv._id.toString());
                       try {
-                        const res = await fetch(`/api/finance/messages?conversationId=${conv._id}`, { credentials: 'include' });
+                        const res = await fetch(`/api/finance?action=messages&conversationId=${conv._id}`, { credentials: 'include' });
                         const data = await res.json();
                         setFinanceMessages((data.messages || []).map(m => ({ role: m.role, text: m.content })));
                       } catch {}
@@ -1219,7 +1219,7 @@ const AxigonWebsite = () => {
                     onClick={async () => {
                       setLegalConversationId(conv._id);
                       try {
-                        const res = await fetch(`/api/legal/messages?conversationId=${conv._id}`, { credentials: 'include' });
+                        const res = await fetch(`/api/legal?action=messages&conversationId=${conv._id}`, { credentials: 'include' });
                         const data = await res.json();
                         setLegalMessages((data.messages || []).map(m => ({ role: m.role, text: m.content })));
                       } catch {}
