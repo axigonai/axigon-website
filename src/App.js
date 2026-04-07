@@ -24,6 +24,10 @@ const AxigonWebsite = () => {
   const [signupStep, setSignupStep] = useState('form'); // 'form' | 'account-type'
   const [selectedAccountType, setSelectedAccountType] = useState(null);
   const [personalToastIndex, setPersonalToastIndex] = useState(null);
+  const [profileData, setProfileData] = useState({ name: '', phone: '', dateOfBirth: '', city: '', occupation: '', annualIncome: '' });
+  const [profileSaving, setProfileSaving] = useState(false);
+  const [profileError, setProfileError] = useState('');
+  const [profileSuccess, setProfileSuccess] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 50);
@@ -167,6 +171,30 @@ const AxigonWebsite = () => {
     } else {
       setCurrentPage('company');
       setScrollToOfferings(true);
+    }
+  };
+
+  const handleProfileSave = async (e) => {
+    e.preventDefault();
+    setProfileSaving(true);
+    setProfileError('');
+    setProfileSuccess(false);
+    try {
+      const res = await fetch('/api/users/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(profileData),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to save profile');
+      setUser(prev => ({ ...prev, name: data.user.name }));
+      setProfileSuccess(true);
+      setTimeout(() => setProfileSuccess(false), 3000);
+    } catch (err) {
+      setProfileError(err.message);
+    } finally {
+      setProfileSaving(false);
     }
   };
 
@@ -372,7 +400,23 @@ const AxigonWebsite = () => {
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             {isLoggedIn ? (
               <>
+                {user?.accountType === 'personal' && currentPage !== 'dashboard' && (
+                  <button onClick={() => setCurrentPage('dashboard')}
+                    style={{ ...btnGhost, padding: '9px 18px', fontSize: '14px' }} onMouseEnter={btnGhostHover} onMouseLeave={btnGhostLeave}>
+                    Switch to Business →
+                  </button>
+                )}
                 <span style={{ color: '#94A3B8', fontSize: '14px', marginRight: '4px' }}>Hi, {user.name}!</span>
+                <button
+                  onClick={() => {
+                    setProfileData({ name: user.name || '', phone: user.phone || '', dateOfBirth: user.dateOfBirth || '', city: user.city || '', occupation: user.occupation || '', annualIncome: user.annualIncome || '' });
+                    setProfileError('');
+                    setProfileSuccess(false);
+                    setCurrentPage('profile');
+                  }}
+                  style={{ ...btnGhost, padding: '9px 18px', fontSize: '14px' }} onMouseEnter={btnGhostHover} onMouseLeave={btnGhostLeave}>
+                  Profile
+                </button>
                 <button onClick={handleLogout} style={{ ...btnPrimary, padding: '9px 20px', fontSize: '14px' }} onMouseEnter={btnPrimaryHover} onMouseLeave={btnPrimaryLeave}>
                   Logout
                 </button>
@@ -721,16 +765,9 @@ const AxigonWebsite = () => {
       {currentPage === 'dashboard' && (
         <section style={{ minHeight: '100vh', backgroundColor: '#06080F', paddingTop: '80px' }}>
           <div className="max-w-7xl mx-auto px-6 py-12">
-            <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: '48px', flexWrap: 'wrap', gap: '16px' }}>
-              <div>
-                <p style={sectionLabel('#8B5CF6')}>Dashboard</p>
-                <h1 style={{ fontSize: '40px', fontWeight: 800, color: '#F1F5F9', letterSpacing: '-0.02em', margin: 0 }}>Your AI Agents</h1>
-              </div>
-              <button onClick={handleLogout}
-                style={{ backgroundColor: '#0F1A2E', color: '#94A3B8', border: '1px solid #1E2D45', padding: '10px 22px', borderRadius: '8px', fontWeight: 600, fontSize: '14px', cursor: 'pointer', transition: 'all 0.2s' }}
-                onMouseEnter={e => { e.currentTarget.style.borderColor = '#8B5CF6'; e.currentTarget.style.color = '#F1F5F9'; }}
-                onMouseLeave={e => { e.currentTarget.style.borderColor = '#1E2D45'; e.currentTarget.style.color = '#94A3B8'; }}
-              >Sign Out</button>
+            <div style={{ marginBottom: '48px' }}>
+              <p style={sectionLabel('#8B5CF6')}>Dashboard</p>
+              <h1 style={{ fontSize: '40px', fontWeight: 800, color: '#F1F5F9', letterSpacing: '-0.02em', margin: 0 }}>Your AI Agents</h1>
             </div>
             <div className="grid md:grid-cols-3 gap-5">
               {agents.map((a, i) => {
@@ -775,39 +812,29 @@ const AxigonWebsite = () => {
                 <p style={sectionLabel('#22D3EE')}>Personal Dashboard</p>
                 <h1 style={{ fontSize: '40px', fontWeight: 800, color: '#F1F5F9', letterSpacing: '-0.02em', margin: 0 }}>Your Personal AI</h1>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-                <span style={{ color: '#94A3B8', fontSize: '14px' }}>Hi, {user?.name}!</span>
-                {user?.accountType === 'personal' && (
-                  <button
-                    onClick={() => setCurrentPage('dashboard')}
-                    style={{ background: 'none', border: '1px solid #1E2D45', borderRadius: '8px', color: '#4B6279', padding: '8px 16px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s' }}
-                    onMouseEnter={e => { e.currentTarget.style.borderColor = '#22D3EE'; e.currentTarget.style.color = '#22D3EE'; }}
-                    onMouseLeave={e => { e.currentTarget.style.borderColor = '#1E2D45'; e.currentTarget.style.color = '#4B6279'; }}
-                  >Switch to Business →</button>
-                )}
-                <button onClick={handleLogout}
-                  style={{ backgroundColor: '#0F1A2E', color: '#94A3B8', border: '1px solid #1E2D45', padding: '10px 22px', borderRadius: '8px', fontWeight: 600, fontSize: '14px', cursor: 'pointer', transition: 'all 0.2s' }}
-                  onMouseEnter={e => { e.currentTarget.style.borderColor = '#8B5CF6'; e.currentTarget.style.color = '#F1F5F9'; }}
-                  onMouseLeave={e => { e.currentTarget.style.borderColor = '#1E2D45'; e.currentTarget.style.color = '#94A3B8'; }}
-                >Sign Out</button>
-              </div>
+              <button
+                onClick={() => setCurrentPage('dashboard')}
+                style={{ ...btnGhost, padding: '10px 20px', fontSize: '14px' }}
+                onMouseEnter={btnGhostHover}
+                onMouseLeave={btnGhostLeave}
+              >Switch to Business →</button>
             </div>
 
             {/* Agent tiles */}
             <div className="grid md:grid-cols-2 gap-5">
               {[
-                { emoji: '💰', name: 'Life Finance', color: '#10B981', desc: 'Understand your money, plan your future' },
-                { emoji: '🚀', name: 'Career Co-Pilot', color: '#8B5CF6', desc: 'Close skill gaps, negotiate better, grow faster' },
-                { emoji: '🧠', name: 'Decision Intelligence', color: '#22D3EE', desc: "Model life's big decisions with real numbers" },
-                { emoji: '❤️', name: 'Health & Habits', color: '#F43F5E', desc: 'Connect your habits to your life outcomes' },
+                { name: 'Life Finance', color: '#10B981', desc: 'Understand your money, plan your future' },
+                { name: 'Career Co-Pilot', color: '#8B5CF6', desc: 'Close skill gaps, negotiate better, grow faster' },
+                { name: 'Decision Intelligence', color: '#22D3EE', desc: "Model life's big decisions with real numbers" },
+                { name: 'Health & Habits', color: '#F43F5E', desc: 'Connect your habits to your life outcomes' },
               ].map((a, i) => (
                 <div key={i} style={{ ...darkCard, padding: '28px', position: 'relative', overflow: 'hidden' }}
                   onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.borderColor = `${a.color}60`; e.currentTarget.style.boxShadow = `0 20px 48px rgba(0,0,0,0.5), 0 0 0 1px ${a.color}30`; }}
                   onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.borderColor = '#1E2D45'; e.currentTarget.style.boxShadow = 'none'; }}
                 >
                   <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '2px', backgroundColor: a.color }} />
-                  <div style={{ width: '44px', height: '44px', borderRadius: '10px', backgroundColor: `${a.color}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px', border: `1px solid ${a.color}30`, fontSize: '22px' }}>
-                    {a.emoji}
+                  <div style={{ width: '44px', height: '44px', borderRadius: '10px', backgroundColor: `${a.color}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px', border: `1px solid ${a.color}30` }}>
+                    <span style={{ color: a.color, fontSize: '14px', fontWeight: 800 }}>AI</span>
                   </div>
                   <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#F1F5F9', marginBottom: '12px' }}>{a.name}</h3>
                   <p style={{ fontSize: '14px', color: '#94A3B8', lineHeight: 1.65, marginBottom: '20px' }}>{a.desc}</p>
@@ -1224,6 +1251,173 @@ const AxigonWebsite = () => {
                 </div>
               )}
             </div>
+          </div>
+        </section>
+      )}
+
+      {/* ════════════════════════════════════════════
+          PROFILE
+      ════════════════════════════════════════════ */}
+      {currentPage === 'profile' && (
+        <section style={{ minHeight: '100vh', backgroundColor: '#06080F', paddingTop: '80px' }}>
+          <div style={{ maxWidth: '640px', margin: '0 auto', padding: '48px 24px' }}>
+
+            {/* Back link */}
+            <button
+              onClick={() => setCurrentPage(user?.accountType === 'personal' ? 'personal-dashboard' : 'dashboard')}
+              style={{ background: 'none', border: 'none', color: '#4B6279', fontSize: '13px', fontWeight: 600, cursor: 'pointer', padding: 0, marginBottom: '32px', display: 'flex', alignItems: 'center', gap: '6px', transition: 'color 0.2s', fontFamily: 'inherit' }}
+              onMouseEnter={e => e.currentTarget.style.color = '#94A3B8'}
+              onMouseLeave={e => e.currentTarget.style.color = '#4B6279'}
+            >← Back to Dashboard</button>
+
+            {/* Heading */}
+            <div style={{ marginBottom: '36px' }}>
+              <p style={sectionLabel('#8B5CF6')}>Account</p>
+              <h1 style={{ fontSize: '36px', fontWeight: 800, color: '#F1F5F9', letterSpacing: '-0.02em', margin: 0 }}>Your Profile</h1>
+            </div>
+
+            {/* Form card */}
+            <div style={{ backgroundColor: '#0F1A2E', border: '1px solid #1E2D45', borderRadius: '16px', padding: '36px' }}>
+              <form onSubmit={handleProfileSave}>
+
+                {/* Row: Full Name */}
+                <div style={{ marginBottom: '20px' }}>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#94A3B8', marginBottom: '8px', letterSpacing: '0.03em' }}>Full Name</label>
+                  <input
+                    type="text"
+                    value={profileData.name}
+                    onChange={e => setProfileData(p => ({ ...p, name: e.target.value }))}
+                    style={inputStyle}
+                    onFocus={e => e.currentTarget.style.borderColor = '#8B5CF6'}
+                    onBlur={e => e.currentTarget.style.borderColor = '#1E2D45'}
+                    placeholder="Your full name"
+                  />
+                </div>
+
+                {/* Row: Email (read-only) */}
+                <div style={{ marginBottom: '20px' }}>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#94A3B8', marginBottom: '8px', letterSpacing: '0.03em' }}>Email</label>
+                  <input
+                    type="email"
+                    value={user?.email || ''}
+                    readOnly
+                    style={{ ...inputStyle, color: '#4B6279', cursor: 'default', backgroundColor: '#0A1120' }}
+                  />
+                </div>
+
+                {/* Row: Phone + Date of Birth */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '20px' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#94A3B8', marginBottom: '8px', letterSpacing: '0.03em' }}>Phone Number</label>
+                    <input
+                      type="tel"
+                      value={profileData.phone}
+                      onChange={e => setProfileData(p => ({ ...p, phone: e.target.value }))}
+                      style={inputStyle}
+                      onFocus={e => e.currentTarget.style.borderColor = '#8B5CF6'}
+                      onBlur={e => e.currentTarget.style.borderColor = '#1E2D45'}
+                      placeholder="+91 00000 00000"
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#94A3B8', marginBottom: '8px', letterSpacing: '0.03em' }}>Date of Birth</label>
+                    <input
+                      type="date"
+                      value={profileData.dateOfBirth}
+                      onChange={e => setProfileData(p => ({ ...p, dateOfBirth: e.target.value }))}
+                      style={{ ...inputStyle, colorScheme: 'dark' }}
+                      onFocus={e => e.currentTarget.style.borderColor = '#8B5CF6'}
+                      onBlur={e => e.currentTarget.style.borderColor = '#1E2D45'}
+                    />
+                  </div>
+                </div>
+
+                {/* Row: City + Occupation */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '20px' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#94A3B8', marginBottom: '8px', letterSpacing: '0.03em' }}>City</label>
+                    <input
+                      type="text"
+                      value={profileData.city}
+                      onChange={e => setProfileData(p => ({ ...p, city: e.target.value }))}
+                      style={inputStyle}
+                      onFocus={e => e.currentTarget.style.borderColor = '#8B5CF6'}
+                      onBlur={e => e.currentTarget.style.borderColor = '#1E2D45'}
+                      placeholder="Mumbai"
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#94A3B8', marginBottom: '8px', letterSpacing: '0.03em' }}>Occupation</label>
+                    <input
+                      type="text"
+                      value={profileData.occupation}
+                      onChange={e => setProfileData(p => ({ ...p, occupation: e.target.value }))}
+                      style={inputStyle}
+                      onFocus={e => e.currentTarget.style.borderColor = '#8B5CF6'}
+                      onBlur={e => e.currentTarget.style.borderColor = '#1E2D45'}
+                      placeholder="Software Engineer"
+                    />
+                  </div>
+                </div>
+
+                {/* Row: Annual Income + Account Type */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '32px' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#94A3B8', marginBottom: '8px', letterSpacing: '0.03em' }}>Annual Income (approx.)</label>
+                    <input
+                      type="text"
+                      value={profileData.annualIncome}
+                      onChange={e => setProfileData(p => ({ ...p, annualIncome: e.target.value }))}
+                      style={inputStyle}
+                      onFocus={e => e.currentTarget.style.borderColor = '#8B5CF6'}
+                      onBlur={e => e.currentTarget.style.borderColor = '#1E2D45'}
+                      placeholder="e.g. 12,00,000"
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#94A3B8', marginBottom: '8px', letterSpacing: '0.03em' }}>Account Type</label>
+                    <input
+                      type="text"
+                      value={user?.accountType === 'personal' ? 'Personal' : 'Business'}
+                      readOnly
+                      style={{ ...inputStyle, color: '#4B6279', cursor: 'default', backgroundColor: '#0A1120' }}
+                    />
+                  </div>
+                </div>
+
+                {/* Error / success feedback */}
+                {profileError && (
+                  <div style={{ marginBottom: '20px', padding: '12px 16px', borderRadius: '8px', backgroundColor: 'rgba(244,63,94,0.1)', border: '1px solid rgba(244,63,94,0.3)', color: '#F43F5E', fontSize: '14px' }}>
+                    {profileError}
+                  </div>
+                )}
+                {profileSuccess && (
+                  <div style={{ marginBottom: '20px', padding: '12px 16px', borderRadius: '8px', backgroundColor: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.3)', color: '#10B981', fontSize: '14px' }}>
+                    Profile saved successfully.
+                  </div>
+                )}
+
+                {/* Actions */}
+                <div style={{ display: 'flex', gap: '12px' }}>
+                  <button
+                    type="submit"
+                    disabled={profileSaving}
+                    style={{ ...btnPrimary, padding: '12px 28px', fontSize: '15px', opacity: profileSaving ? 0.7 : 1 }}
+                    onMouseEnter={profileSaving ? undefined : btnPrimaryHover}
+                    onMouseLeave={profileSaving ? undefined : btnPrimaryLeave}
+                  >{profileSaving ? 'Saving...' : 'Save Changes'}</button>
+                  <button
+                    type="button"
+                    onClick={() => setCurrentPage(user?.accountType === 'personal' ? 'personal-dashboard' : 'dashboard')}
+                    style={{ ...btnGhost, padding: '12px 24px', fontSize: '15px' }}
+                    onMouseEnter={btnGhostHover}
+                    onMouseLeave={btnGhostLeave}
+                  >Cancel</button>
+                </div>
+
+              </form>
+            </div>
+
           </div>
         </section>
       )}
