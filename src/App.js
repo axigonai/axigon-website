@@ -407,7 +407,12 @@ const AxigonWebsite = () => {
                     Switch to Business →
                   </button>
                 )}
-                <span style={{ color: '#94A3B8', fontSize: '14px' }}>Hi, {user.name}!</span>
+                {user?.accountType === 'personal' && currentPage === 'dashboard' && (
+                  <button onClick={() => setCurrentPage('personal-dashboard')}
+                    style={{ ...btnGhost, padding: '9px 18px', fontSize: '14px' }} onMouseEnter={btnGhostHover} onMouseLeave={btnGhostLeave}>
+                    Switch to Personal →
+                  </button>
+                )}
                 <button
                   onClick={() => {
                     setPrevPage(currentPage);
@@ -419,6 +424,7 @@ const AxigonWebsite = () => {
                   style={{ ...btnGhost, padding: '9px 18px', fontSize: '14px' }} onMouseEnter={btnGhostHover} onMouseLeave={btnGhostLeave}>
                   Profile
                 </button>
+                <span style={{ color: '#94A3B8', fontSize: '14px' }}>Hi, {user.name}!</span>
                 <button onClick={handleLogout} style={{ ...btnPrimary, padding: '9px 20px', fontSize: '14px' }} onMouseEnter={btnPrimaryHover} onMouseLeave={btnPrimaryLeave}>
                   Logout
                 </button>
