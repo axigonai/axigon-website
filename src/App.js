@@ -32,6 +32,10 @@ const AxigonWebsite = () => {
   const [financeProfile, setFinanceProfile] = useState(null);
   const [financeUploadStatus, setFinanceUploadStatus] = useState(null); // null|'uploading'|'processing'|'done'|'error'
   const [financeUploadMessage, setFinanceUploadMessage] = useState('');
+  const [financeDocuments, setFinanceDocuments] = useState([]);
+  const [legalDeleteConfirm, setLegalDeleteConfirm] = useState(null);
+  const [financeDeleteConvConfirm, setFinanceDeleteConvConfirm] = useState(null);
+  const [financeDeleteDocConfirm, setFinanceDeleteDocConfirm] = useState(null);
   const [profileData, setProfileData] = useState({ name: '', phone: '', dateOfBirth: '', city: '', occupation: '', annualIncome: '' });
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileError, setProfileError] = useState('');
@@ -207,6 +211,71 @@ const AxigonWebsite = () => {
     }
   };
 
+  const handleLegalDeleteConversation = async (convId) => {
+    try {
+      const res = await fetch('/api/legal?action=delete-conversation', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ conversationId: convId }),
+      });
+      if (res.ok) {
+        setLegalConversations(prev => prev.filter(c => c._id !== convId));
+        if (legalConversationId === convId) {
+          setLegalConversationId(null);
+          setLegalMessages([]);
+        }
+      }
+    } catch {}
+    setLegalDeleteConfirm(null);
+  };
+
+  const handleFinanceDeleteConversation = async (convId) => {
+    try {
+      const res = await fetch('/api/finance?action=delete-conversation', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ conversationId: convId }),
+      });
+      if (res.ok) {
+        setFinanceConversations(prev => prev.filter(c => c._id.toString() !== convId));
+        if (financeConversationId === convId) {
+          setFinanceConversationId(null);
+          setFinanceMessages([]);
+        }
+      }
+    } catch {}
+    setFinanceDeleteConvConfirm(null);
+  };
+
+  const fetchFinanceDocuments = async () => {
+    try {
+      const res = await fetch('/api/finance?action=documents', { credentials: 'include' });
+      if (res.ok) {
+        const data = await res.json();
+        setFinanceDocuments(data.documents || []);
+      }
+    } catch {}
+  };
+
+  const handleFinanceDeleteDocument = async (docId) => {
+    try {
+      const res = await fetch('/api/finance?action=delete-document', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ documentId: docId }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setFinanceDocuments(prev => prev.filter(d => d._id.toString() !== docId));
+        setFinanceProfile(data.profile || null);
+      }
+    } catch {}
+    setFinanceDeleteDocConfirm(null);
+  };
+
   const fetchFinanceConversations = async () => {
     try {
       const res = await fetch('/api/finance?action=conversations', { credentials: 'include' });
@@ -271,6 +340,7 @@ const AxigonWebsite = () => {
       setFinanceUploadStatus('done');
       setFinanceUploadMessage(data.summary || 'Document processed successfully.');
       fetchFinanceProfile();
+      fetchFinanceDocuments();
     } catch (err) {
       setFinanceUploadStatus('error');
       setFinanceUploadMessage(err.message || 'Upload failed. Please try again.');
@@ -302,6 +372,7 @@ const AxigonWebsite = () => {
     if (currentPage === 'life-finance') {
       fetchFinanceConversations();
       fetchFinanceProfile();
+      fetchFinanceDocuments();
     }
   }, [currentPage]);
 
@@ -976,26 +1047,52 @@ const AxigonWebsite = () => {
               )}
               {financeConversations.map(conv => {
                 const isActive = financeConversationId === conv._id.toString();
+                const isConfirming = financeDeleteConvConfirm === conv._id.toString();
                 const date = new Date(conv.updatedAt || conv.createdAt).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' });
                 return (
-                  <button key={conv._id}
-                    onClick={async () => {
-                      setFinanceConversationId(conv._id.toString());
-                      try {
-                        const res = await fetch(`/api/finance?action=messages&conversationId=${conv._id}`, { credentials: 'include' });
-                        const data = await res.json();
-                        setFinanceMessages((data.messages || []).map(m => ({ role: m.role, text: m.content })));
-                      } catch {}
-                    }}
-                    style={{ width: '100%', textAlign: 'left', padding: '10px 12px', borderRadius: '8px', border: 'none', backgroundColor: isActive ? 'rgba(16,185,129,0.12)' : 'transparent', cursor: 'pointer', transition: 'background-color 0.15s', marginBottom: '2px', outline: isActive ? '1px solid rgba(16,185,129,0.3)' : 'none', fontFamily: 'inherit' }}
-                    onMouseEnter={e => { if (!isActive) e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.04)'; }}
-                    onMouseLeave={e => { if (!isActive) e.currentTarget.style.backgroundColor = 'transparent'; }}
+                  <div key={conv._id} style={{ position: 'relative', marginBottom: '2px' }}
+                    onMouseEnter={e => { const btn = e.currentTarget.querySelector('.del-btn'); if (btn) btn.style.opacity = '1'; }}
+                    onMouseLeave={e => { const btn = e.currentTarget.querySelector('.del-btn'); if (btn && !isConfirming) btn.style.opacity = '0'; }}
                   >
-                    <div style={{ fontSize: '13px', fontWeight: 500, color: isActive ? '#6EE7B7' : '#94A3B8', marginBottom: '3px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {conv.title.length > 35 ? conv.title.slice(0, 35) + '…' : conv.title}
-                    </div>
-                    <div style={{ fontSize: '11px', color: '#2D3F55' }}>{date}</div>
-                  </button>
+                    {isConfirming ? (
+                      <div style={{ padding: '8px 12px', borderRadius: '8px', backgroundColor: 'rgba(244,63,94,0.1)', border: '1px solid rgba(244,63,94,0.25)' }}>
+                        <p style={{ fontSize: '12px', color: '#F1F5F9', marginBottom: '8px' }}>Delete this conversation?</p>
+                        <div style={{ display: 'flex', gap: '6px' }}>
+                          <button onClick={() => handleFinanceDeleteConversation(conv._id.toString())}
+                            style={{ flex: 1, padding: '5px', borderRadius: '5px', background: '#F43F5E', color: 'white', border: 'none', fontSize: '12px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>Yes</button>
+                          <button onClick={() => setFinanceDeleteConvConfirm(null)}
+                            style={{ flex: 1, padding: '5px', borderRadius: '5px', background: '#1E2D45', color: '#94A3B8', border: 'none', fontSize: '12px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>No</button>
+                        </div>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={async () => {
+                          setFinanceConversationId(conv._id.toString());
+                          try {
+                            const res = await fetch(`/api/finance?action=messages&conversationId=${conv._id}`, { credentials: 'include' });
+                            const data = await res.json();
+                            setFinanceMessages((data.messages || []).map(m => ({ role: m.role, text: m.content })));
+                          } catch {}
+                        }}
+                        style={{ width: '100%', textAlign: 'left', padding: '10px 12px', borderRadius: '8px', border: 'none', backgroundColor: isActive ? 'rgba(16,185,129,0.12)' : 'transparent', cursor: 'pointer', transition: 'background-color 0.15s', outline: isActive ? '1px solid rgba(16,185,129,0.3)' : 'none', paddingRight: '28px', fontFamily: 'inherit' }}
+                        onMouseEnter={e => { if (!isActive) e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.04)'; }}
+                        onMouseLeave={e => { if (!isActive) e.currentTarget.style.backgroundColor = 'transparent'; }}
+                      >
+                        <div style={{ fontSize: '13px', fontWeight: 500, color: isActive ? '#6EE7B7' : '#94A3B8', marginBottom: '3px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {conv.title.length > 35 ? conv.title.slice(0, 35) + '…' : conv.title}
+                        </div>
+                        <div style={{ fontSize: '11px', color: '#2D3F55' }}>{date}</div>
+                      </button>
+                    )}
+                    {!isConfirming && (
+                      <button className="del-btn"
+                        onClick={e => { e.stopPropagation(); setFinanceDeleteConvConfirm(conv._id.toString()); }}
+                        style={{ position: 'absolute', top: '50%', right: '6px', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#4B6279', fontSize: '14px', cursor: 'pointer', padding: '2px 5px', borderRadius: '4px', opacity: 0, transition: 'opacity 0.15s, color 0.15s', fontFamily: 'inherit', lineHeight: 1 }}
+                        onMouseEnter={e => e.currentTarget.style.color = '#F43F5E'}
+                        onMouseLeave={e => e.currentTarget.style.color = '#4B6279'}
+                      >×</button>
+                    )}
+                  </div>
                 );
               })}
             </div>
@@ -1141,38 +1238,85 @@ const AxigonWebsite = () => {
             </div>
           </div>
 
-          {/* ── Right Panel: Financial Summary ── */}
+          {/* ── Right Panel: Financial Summary + Documents ── */}
           <div style={{ width: '260px', flexShrink: 0, backgroundColor: '#080C16', borderLeft: '1px solid #1E2D45', display: 'flex', flexDirection: 'column', height: 'calc(100vh - 64px)', position: 'sticky', top: '64px', overflowY: 'auto' }}>
-            <div style={{ padding: '20px 16px', borderBottom: '1px solid #1E2D45' }}>
-              <p style={{ fontSize: '11px', fontWeight: 700, color: '#10B981', textTransform: 'uppercase', letterSpacing: '0.1em', margin: '0 0 4px' }}>Financial Summary</p>
+
+            {/* Financial Summary */}
+            <div style={{ padding: '20px 16px 12px', borderBottom: '1px solid #1E2D45' }}>
+              <p style={{ fontSize: '11px', fontWeight: 700, color: '#10B981', textTransform: 'uppercase', letterSpacing: '0.1em', margin: 0 }}>Financial Summary</p>
             </div>
-            <div style={{ padding: '16px' }}>
+            <div style={{ padding: '16px', borderBottom: '1px solid #1E2D45' }}>
               {!financeProfile ? (
-                <p style={{ color: '#2D3F55', fontSize: '13px', lineHeight: 1.6 }}>No documents uploaded yet. Upload a bank statement or salary slip to see your summary here.</p>
+                <p style={{ color: '#2D3F55', fontSize: '13px', lineHeight: 1.6 }}>No documents uploaded yet.</p>
               ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                   {[
-                    { label: 'Monthly Income', value: financeProfile.monthlyIncome },
-                    { label: 'Annual Income',  value: financeProfile.annualIncome },
+                    { label: 'Monthly Income',   value: financeProfile.monthlyIncome },
+                    { label: 'Annual Income',    value: financeProfile.annualIncome },
                     { label: 'Monthly Expenses', value: financeProfile.totalExpenses },
-                    { label: 'Current Balance', value: financeProfile.currentBalance },
+                    { label: 'Current Balance',  value: financeProfile.currentBalance },
                   ].map(({ label, value }) => value != null && (
                     <div key={label}>
-                      <p style={{ fontSize: '11px', color: '#4B6279', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '3px' }}>{label}</p>
-                      <p style={{ fontSize: '15px', fontWeight: 700, color: '#F1F5F9' }}>Rs.{Number(value).toLocaleString('en-IN')}</p>
+                      <p style={{ fontSize: '11px', color: '#4B6279', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '2px' }}>{label}</p>
+                      <p style={{ fontSize: '14px', fontWeight: 700, color: '#F1F5F9', margin: 0 }}>Rs.{Number(value).toLocaleString('en-IN')}</p>
                     </div>
                   ))}
                   <div>
-                    <p style={{ fontSize: '11px', color: '#4B6279', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '3px' }}>Documents</p>
-                    <p style={{ fontSize: '15px', fontWeight: 700, color: '#F1F5F9' }}>{financeProfile.documentsCount || 0} uploaded</p>
-                  </div>
-                  <div>
-                    <p style={{ fontSize: '11px', color: '#4B6279', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '3px' }}>Last Updated</p>
-                    <p style={{ fontSize: '13px', color: '#94A3B8' }}>{new Date(financeProfile.lastUpdated).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
+                    <p style={{ fontSize: '11px', color: '#4B6279', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '2px' }}>Last Updated</p>
+                    <p style={{ fontSize: '12px', color: '#94A3B8', margin: 0 }}>{new Date(financeProfile.lastUpdated).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
                   </div>
                 </div>
               )}
             </div>
+
+            {/* Uploaded Documents */}
+            <div style={{ padding: '16px 16px 12px', borderBottom: '1px solid #0F1826' }}>
+              <p style={{ fontSize: '11px', fontWeight: 700, color: '#4B6279', textTransform: 'uppercase', letterSpacing: '0.1em', margin: '0 0 12px' }}>Uploaded Documents</p>
+              {financeDocuments.length === 0 ? (
+                <p style={{ color: '#2D3F55', fontSize: '12px', lineHeight: 1.6 }}>No documents uploaded yet</p>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  {financeDocuments.map(doc => {
+                    const isConfirming = financeDeleteDocConfirm === doc._id.toString();
+                    const shortName = doc.fileName.length > 25 ? doc.fileName.slice(0, 25) + '…' : doc.fileName;
+                    const docDate = new Date(doc.uploadedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+                    return (
+                      <div key={doc._id}
+                        style={{ padding: '8px 10px', borderRadius: '7px', backgroundColor: '#0A1120', border: '1px solid #1E2D45' }}
+                        onMouseEnter={e => { const btn = e.currentTarget.querySelector('.doc-del'); if (btn) btn.style.opacity = '1'; }}
+                        onMouseLeave={e => { const btn = e.currentTarget.querySelector('.doc-del'); if (btn && !isConfirming) btn.style.opacity = '0'; }}
+                      >
+                        {isConfirming ? (
+                          <>
+                            <p style={{ fontSize: '11px', color: '#F1F5F9', marginBottom: '7px' }}>Delete this document?</p>
+                            <div style={{ display: 'flex', gap: '5px' }}>
+                              <button onClick={() => handleFinanceDeleteDocument(doc._id.toString())}
+                                style={{ flex: 1, padding: '4px', borderRadius: '4px', background: '#F43F5E', color: 'white', border: 'none', fontSize: '11px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>Yes</button>
+                              <button onClick={() => setFinanceDeleteDocConfirm(null)}
+                                style={{ flex: 1, padding: '4px', borderRadius: '4px', background: '#1E2D45', color: '#94A3B8', border: 'none', fontSize: '11px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>No</button>
+                            </div>
+                          </>
+                        ) : (
+                          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '6px' }}>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <p style={{ fontSize: '12px', color: '#94A3B8', fontWeight: 500, margin: '0 0 2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{shortName}</p>
+                              <p style={{ fontSize: '11px', color: '#2D3F55', margin: 0 }}>{doc.documentType.replace('_', ' ')} · {docDate}</p>
+                            </div>
+                            <button className="doc-del"
+                              onClick={() => setFinanceDeleteDocConfirm(doc._id.toString())}
+                              style={{ background: 'none', border: 'none', color: '#4B6279', fontSize: '14px', cursor: 'pointer', padding: '0 2px', opacity: 0, transition: 'opacity 0.15s, color 0.15s', fontFamily: 'inherit', lineHeight: 1, flexShrink: 0 }}
+                              onMouseEnter={e => e.currentTarget.style.color = '#F43F5E'}
+                              onMouseLeave={e => e.currentTarget.style.color = '#4B6279'}
+                            >×</button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
           </div>
 
         </section>
@@ -1213,26 +1357,52 @@ const AxigonWebsite = () => {
               )}
               {legalConversations.map(conv => {
                 const isActive = legalConversationId === conv._id;
+                const isConfirming = legalDeleteConfirm === conv._id;
                 const date = new Date(conv.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
                 return (
-                  <button key={conv._id}
-                    onClick={async () => {
-                      setLegalConversationId(conv._id);
-                      try {
-                        const res = await fetch(`/api/legal?action=messages&conversationId=${conv._id}`, { credentials: 'include' });
-                        const data = await res.json();
-                        setLegalMessages((data.messages || []).map(m => ({ role: m.role, text: m.content })));
-                      } catch {}
-                    }}
-                    style={{ width: '100%', textAlign: 'left', padding: '10px 12px', borderRadius: '8px', border: 'none', backgroundColor: isActive ? 'rgba(139,92,246,0.15)' : 'transparent', cursor: 'pointer', transition: 'background-color 0.15s', marginBottom: '2px', outline: isActive ? '1px solid rgba(139,92,246,0.35)' : 'none' }}
-                    onMouseEnter={e => { if (!isActive) e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.04)'; }}
-                    onMouseLeave={e => { if (!isActive) e.currentTarget.style.backgroundColor = 'transparent'; }}
+                  <div key={conv._id} style={{ position: 'relative', marginBottom: '2px' }}
+                    onMouseEnter={e => { const btn = e.currentTarget.querySelector('.del-btn'); if (btn) btn.style.opacity = '1'; }}
+                    onMouseLeave={e => { const btn = e.currentTarget.querySelector('.del-btn'); if (btn && !isConfirming) btn.style.opacity = '0'; }}
                   >
-                    <div style={{ fontSize: '13px', fontWeight: 500, color: isActive ? '#C4B5FD' : '#94A3B8', marginBottom: '3px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {conv.title.length > 35 ? conv.title.slice(0, 35) + '…' : conv.title}
-                    </div>
-                    <div style={{ fontSize: '11px', color: '#2D3F55' }}>{date}</div>
-                  </button>
+                    {isConfirming ? (
+                      <div style={{ padding: '8px 12px', borderRadius: '8px', backgroundColor: 'rgba(244,63,94,0.1)', border: '1px solid rgba(244,63,94,0.25)' }}>
+                        <p style={{ fontSize: '12px', color: '#F1F5F9', marginBottom: '8px' }}>Delete this conversation?</p>
+                        <div style={{ display: 'flex', gap: '6px' }}>
+                          <button onClick={() => handleLegalDeleteConversation(conv._id)}
+                            style={{ flex: 1, padding: '5px', borderRadius: '5px', background: '#F43F5E', color: 'white', border: 'none', fontSize: '12px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>Yes</button>
+                          <button onClick={() => setLegalDeleteConfirm(null)}
+                            style={{ flex: 1, padding: '5px', borderRadius: '5px', background: '#1E2D45', color: '#94A3B8', border: 'none', fontSize: '12px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>No</button>
+                        </div>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={async () => {
+                          setLegalConversationId(conv._id);
+                          try {
+                            const res = await fetch(`/api/legal?action=messages&conversationId=${conv._id}`, { credentials: 'include' });
+                            const data = await res.json();
+                            setLegalMessages((data.messages || []).map(m => ({ role: m.role, text: m.content })));
+                          } catch {}
+                        }}
+                        style={{ width: '100%', textAlign: 'left', padding: '10px 12px', borderRadius: '8px', border: 'none', backgroundColor: isActive ? 'rgba(139,92,246,0.15)' : 'transparent', cursor: 'pointer', transition: 'background-color 0.15s', outline: isActive ? '1px solid rgba(139,92,246,0.35)' : 'none', paddingRight: '28px', fontFamily: 'inherit' }}
+                        onMouseEnter={e => { if (!isActive) e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.04)'; }}
+                        onMouseLeave={e => { if (!isActive) e.currentTarget.style.backgroundColor = 'transparent'; }}
+                      >
+                        <div style={{ fontSize: '13px', fontWeight: 500, color: isActive ? '#C4B5FD' : '#94A3B8', marginBottom: '3px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {conv.title.length > 35 ? conv.title.slice(0, 35) + '…' : conv.title}
+                        </div>
+                        <div style={{ fontSize: '11px', color: '#2D3F55' }}>{date}</div>
+                      </button>
+                    )}
+                    {!isConfirming && (
+                      <button className="del-btn"
+                        onClick={e => { e.stopPropagation(); setLegalDeleteConfirm(conv._id); }}
+                        style={{ position: 'absolute', top: '50%', right: '6px', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#4B6279', fontSize: '14px', cursor: 'pointer', padding: '2px 5px', borderRadius: '4px', opacity: 0, transition: 'opacity 0.15s, color 0.15s', fontFamily: 'inherit', lineHeight: 1 }}
+                        onMouseEnter={e => e.currentTarget.style.color = '#F43F5E'}
+                        onMouseLeave={e => e.currentTarget.style.color = '#4B6279'}
+                      >×</button>
+                    )}
+                  </div>
                 );
               })}
             </div>
