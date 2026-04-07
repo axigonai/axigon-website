@@ -28,6 +28,7 @@ const AxigonWebsite = () => {
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileError, setProfileError] = useState('');
   const [profileSuccess, setProfileSuccess] = useState(false);
+  const [prevPage, setPrevPage] = useState(null);
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 50);
@@ -406,9 +407,10 @@ const AxigonWebsite = () => {
                     Switch to Business →
                   </button>
                 )}
-                <span style={{ color: '#94A3B8', fontSize: '14px', marginRight: '4px' }}>Hi, {user.name}!</span>
+                <span style={{ color: '#94A3B8', fontSize: '14px' }}>Hi, {user.name}!</span>
                 <button
                   onClick={() => {
+                    setPrevPage(currentPage);
                     setProfileData({ name: user.name || '', phone: user.phone || '', dateOfBirth: user.dateOfBirth || '', city: user.city || '', occupation: user.occupation || '', annualIncome: user.annualIncome || '' });
                     setProfileError('');
                     setProfileSuccess(false);
@@ -806,18 +808,10 @@ const AxigonWebsite = () => {
         <section style={{ minHeight: '100vh', backgroundColor: '#06080F', paddingTop: '80px' }}>
           <div className="max-w-7xl mx-auto px-6 py-12">
 
-            {/* Header */}
-            <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: '48px', flexWrap: 'wrap', gap: '16px' }}>
-              <div>
-                <p style={sectionLabel('#22D3EE')}>Personal Dashboard</p>
-                <h1 style={{ fontSize: '40px', fontWeight: 800, color: '#F1F5F9', letterSpacing: '-0.02em', margin: 0 }}>Your Personal AI</h1>
-              </div>
-              <button
-                onClick={() => setCurrentPage('dashboard')}
-                style={{ ...btnGhost, padding: '10px 20px', fontSize: '14px' }}
-                onMouseEnter={btnGhostHover}
-                onMouseLeave={btnGhostLeave}
-              >Switch to Business →</button>
+            {/* Title */}
+            <div style={{ marginBottom: '48px' }}>
+              <p style={sectionLabel('#22D3EE')}>Personal Dashboard</p>
+              <h1 style={{ fontSize: '40px', fontWeight: 800, color: '#F1F5F9', letterSpacing: '-0.02em', margin: 0 }}>Your Personal AI</h1>
             </div>
 
             {/* Agent tiles */}
@@ -833,9 +827,6 @@ const AxigonWebsite = () => {
                   onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.borderColor = '#1E2D45'; e.currentTarget.style.boxShadow = 'none'; }}
                 >
                   <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '2px', backgroundColor: a.color }} />
-                  <div style={{ width: '44px', height: '44px', borderRadius: '10px', backgroundColor: `${a.color}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px', border: `1px solid ${a.color}30` }}>
-                    <span style={{ color: a.color, fontSize: '14px', fontWeight: 800 }}>AI</span>
-                  </div>
                   <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#F1F5F9', marginBottom: '12px' }}>{a.name}</h3>
                   <p style={{ fontSize: '14px', color: '#94A3B8', lineHeight: 1.65, marginBottom: '20px' }}>{a.desc}</p>
                   {personalToastIndex === i ? (
@@ -1264,11 +1255,11 @@ const AxigonWebsite = () => {
 
             {/* Back link */}
             <button
-              onClick={() => setCurrentPage(user?.accountType === 'personal' ? 'personal-dashboard' : 'dashboard')}
+              onClick={() => setCurrentPage(prevPage || (user?.accountType === 'personal' ? 'personal-dashboard' : 'dashboard'))}
               style={{ background: 'none', border: 'none', color: '#4B6279', fontSize: '13px', fontWeight: 600, cursor: 'pointer', padding: 0, marginBottom: '32px', display: 'flex', alignItems: 'center', gap: '6px', transition: 'color 0.2s', fontFamily: 'inherit' }}
               onMouseEnter={e => e.currentTarget.style.color = '#94A3B8'}
               onMouseLeave={e => e.currentTarget.style.color = '#4B6279'}
-            >← Back to Dashboard</button>
+            >← Back</button>
 
             {/* Heading */}
             <div style={{ marginBottom: '36px' }}>
