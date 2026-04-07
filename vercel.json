@@ -9,6 +9,7 @@
     { "source": "/api/legal/conversations", "destination": "/api/legal/conversations.js" },
     { "source": "/api/legal/messages", "destination": "/api/legal/messages.js" },
     { "source": "/api/users/profile", "destination": "/api/users/profile.js" },
+    { "source": "/api/finance/upload", "destination": "/api/finance/upload.js" },
     { "source": "/api/agents", "destination": "/api/agents/index.js" },
     { "source": "/api/agents/(.*)", "destination": "/api/agents/single.js" },
     { "source": "/(.*)", "destination": "/index.html" }
