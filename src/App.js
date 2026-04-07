@@ -21,6 +21,8 @@ const AxigonWebsite = () => {
   const [legalLoading, setLegalLoading] = useState(false);
   const [legalConversations, setLegalConversations] = useState([]);
   const [legalConversationId, setLegalConversationId] = useState(null);
+  const [signupStep, setSignupStep] = useState('form'); // 'form' | 'account-type'
+  const [selectedAccountType, setSelectedAccountType] = useState(null);
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 50);
@@ -36,6 +38,7 @@ const AxigonWebsite = () => {
           setUser(data.user);
           setIsLoggedIn(true);
         }
+        // Note: no auto-redirect here — user stays on current page on reload
       })
       .catch(() => {});
   }, []);
@@ -88,7 +91,7 @@ const AxigonWebsite = () => {
       setUser(data.user);
       setIsLoggedIn(true);
       setLoginData({ email: '', password: '' });
-      setCurrentPage('dashboard');
+      setCurrentPage(data.user.accountType === 'personal' ? 'personal-dashboard' : 'dashboard');
 
     } catch (error) {
       console.error('Login error:', error);
@@ -101,26 +104,32 @@ const AxigonWebsite = () => {
   const handleSignup = async (e) => {
     e.preventDefault();
     setError('');
-    setLoading(true);
 
     if (!signupData.name || !signupData.email || !signupData.company || !signupData.password) {
       setError('Please fill in all fields');
-      setLoading(false);
       return;
     }
 
     if (signupData.password.length < 6) {
       setError('Password must be at least 6 characters');
-      setLoading(false);
       return;
     }
+
+    // Show account type step before submitting
+    setSignupStep('account-type');
+  };
+
+  const handleSignupSubmit = async () => {
+    if (!selectedAccountType) return;
+    setError('');
+    setLoading(true);
 
     try {
       const response = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify(signupData),
+        body: JSON.stringify({ ...signupData, accountType: selectedAccountType }),
       });
 
       const data = await response.json();
@@ -130,11 +139,14 @@ const AxigonWebsite = () => {
       }
 
       setSignupData({ name: '', email: '', company: '', password: '' });
+      setSignupStep('form');
+      setSelectedAccountType(null);
       setCurrentPage('login');
 
     } catch (error) {
       console.error('Signup error:', error);
       setError(error.message || 'Signup failed');
+      setSignupStep('form');
     } finally {
       setLoading(false);
     }
@@ -1035,50 +1047,114 @@ const AxigonWebsite = () => {
       ════════════════════════════════════════════ */}
       {currentPage === 'signup' && (
         <section style={{ minHeight: '100vh', backgroundColor: '#06080F', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '80px 24px 40px' }}>
-          <div style={{ width: '100%', maxWidth: '420px' }}>
+          <div style={{ width: '100%', maxWidth: signupStep === 'account-type' ? '560px' : '420px', transition: 'max-width 0.2s' }}>
+
+            {/* Logo */}
             <div style={{ textAlign: 'center', marginBottom: '36px' }}>
-              <button onClick={() => setCurrentPage('company')} style={{ fontSize: '22px', fontWeight: 800, color: '#F1F5F9', background: 'none', border: 'none', cursor: 'pointer', marginBottom: '28px', display: 'inline-block' }}>
+              <button onClick={() => { setCurrentPage('company'); setSignupStep('form'); setSelectedAccountType(null); }}
+                style={{ fontSize: '22px', fontWeight: 800, color: '#F1F5F9', background: 'none', border: 'none', cursor: 'pointer', marginBottom: '28px', display: 'inline-block' }}>
                 Axigon<span style={gradientText}>AI</span>
               </button>
-              <h2 style={{ fontSize: '28px', fontWeight: 800, color: '#F1F5F9', marginBottom: '8px', letterSpacing: '-0.01em' }}>Create Account</h2>
-              <p style={{ color: '#94A3B8', fontSize: '15px', margin: 0 }}>Get started with Axigon AI</p>
+              {signupStep === 'form' ? (
+                <>
+                  <h2 style={{ fontSize: '28px', fontWeight: 800, color: '#F1F5F9', marginBottom: '8px', letterSpacing: '-0.01em' }}>Create Account</h2>
+                  <p style={{ color: '#94A3B8', fontSize: '15px', margin: 0 }}>Get started with Axigon AI</p>
+                </>
+              ) : (
+                <>
+                  <h2 style={{ fontSize: '28px', fontWeight: 800, color: '#F1F5F9', marginBottom: '8px', letterSpacing: '-0.01em' }}>What brings you to Axigon?</h2>
+                  <p style={{ color: '#94A3B8', fontSize: '15px', margin: 0 }}>Choose the experience that fits your needs</p>
+                </>
+              )}
             </div>
+
             <div style={{ backgroundColor: '#0F1A2E', border: '1px solid #1E2D45', borderRadius: '18px', padding: '36px', boxShadow: '0 40px 80px rgba(0,0,0,0.55)' }}>
               {error && (
                 <div style={{ marginBottom: '20px', padding: '12px 16px', borderRadius: '8px', backgroundColor: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.28)', color: '#FCA5A5', fontSize: '14px' }}>
                   {error}
                 </div>
               )}
-              <form onSubmit={handleSignup} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                {[
-                  { label: 'Full Name', type: 'text', placeholder: 'John Doe', field: 'name' },
-                  { label: 'Company Email', type: 'email', placeholder: 'you@company.com', field: 'email' },
-                  { label: 'Company Name', type: 'text', placeholder: 'Your Company', field: 'company' },
-                  { label: 'Password', type: 'password', placeholder: 'Min 6 characters', field: 'password' },
-                ].map(({ label, type, placeholder, field }) => (
-                  <div key={field}>
-                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#94A3B8', marginBottom: '8px', letterSpacing: '0.08em', textTransform: 'uppercase' }}>{label}</label>
-                    <input type={type} placeholder={placeholder} value={signupData[field]} onChange={e => setSignupData({ ...signupData, [field]: e.target.value })} disabled={loading}
-                      style={inputStyle}
-                      onFocus={e => e.currentTarget.style.borderColor = '#8B5CF6'}
-                      onBlur={e => e.currentTarget.style.borderColor = '#1E2D45'}
-                    />
+
+              {/* ── Step 1: Form ── */}
+              {signupStep === 'form' && (
+                <form onSubmit={handleSignup} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  {[
+                    { label: 'Full Name', type: 'text', placeholder: 'John Doe', field: 'name' },
+                    { label: 'Company Email', type: 'email', placeholder: 'you@company.com', field: 'email' },
+                    { label: 'Company Name', type: 'text', placeholder: 'Your Company', field: 'company' },
+                    { label: 'Password', type: 'password', placeholder: 'Min 6 characters', field: 'password' },
+                  ].map(({ label, type, placeholder, field }) => (
+                    <div key={field}>
+                      <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#94A3B8', marginBottom: '8px', letterSpacing: '0.08em', textTransform: 'uppercase' }}>{label}</label>
+                      <input type={type} placeholder={placeholder} value={signupData[field]} onChange={e => setSignupData({ ...signupData, [field]: e.target.value })} disabled={loading}
+                        style={inputStyle}
+                        onFocus={e => e.currentTarget.style.borderColor = '#8B5CF6'}
+                        onBlur={e => e.currentTarget.style.borderColor = '#1E2D45'}
+                      />
+                    </div>
+                  ))}
+                  <label style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', fontSize: '13px', color: '#94A3B8', cursor: 'pointer', lineHeight: 1.5 }}>
+                    <input type="checkbox" required style={{ marginTop: '2px', accentColor: '#8B5CF6', flexShrink: 0 }} />
+                    <span>I agree to the Terms of Service and Privacy Policy</span>
+                  </label>
+                  <button type="submit" disabled={loading}
+                    style={{ ...btnPrimary, padding: '13px', fontSize: '15px', width: '100%', marginTop: '4px', opacity: loading ? 0.6 : 1, cursor: loading ? 'not-allowed' : 'pointer' }}
+                    onMouseEnter={e => { if (!loading) btnPrimaryHover(e); }}
+                    onMouseLeave={e => { if (!loading) btnPrimaryLeave(e); }}
+                  >{loading ? 'Creating Account...' : 'Continue'}</button>
+                  <p style={{ textAlign: 'center', fontSize: '14px', color: '#94A3B8', margin: 0 }}>
+                    Already have an account?{' '}
+                    <button type="button" onClick={() => setCurrentPage('login')} style={{ color: '#A78BFA', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: '14px' }}>Log in</button>
+                  </p>
+                </form>
+              )}
+
+              {/* ── Step 2: Account type ── */}
+              {signupStep === 'account-type' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+                    {[
+                      { value: 'personal', emoji: '🙋', title: 'Personal', desc: 'Manage my life,\nfinances & career' },
+                      { value: 'business', emoji: '🏢', title: 'Business', desc: 'Run my business,\ncompliance & ops' },
+                    ].map(opt => {
+                      const isSelected = selectedAccountType === opt.value;
+                      return (
+                        <button key={opt.value} type="button"
+                          onClick={() => setSelectedAccountType(opt.value)}
+                          style={{
+                            padding: '24px 20px', borderRadius: '14px', cursor: 'pointer', textAlign: 'center',
+                            backgroundColor: isSelected ? 'rgba(139,92,246,0.12)' : '#131E30',
+                            border: isSelected ? '2px solid #8B5CF6' : '2px solid #1E2D45',
+                            transition: 'all 0.18s ease', outline: 'none',
+                            boxShadow: isSelected ? '0 0 0 3px rgba(139,92,246,0.2)' : 'none',
+                          }}
+                          onMouseEnter={e => { if (!isSelected) e.currentTarget.style.borderColor = 'rgba(139,92,246,0.4)'; }}
+                          onMouseLeave={e => { if (!isSelected) e.currentTarget.style.borderColor = '#1E2D45'; }}
+                        >
+                          <div style={{ fontSize: '32px', marginBottom: '12px' }}>{opt.emoji}</div>
+                          <div style={{ fontSize: '16px', fontWeight: 700, color: isSelected ? '#C4B5FD' : '#F1F5F9', marginBottom: '8px' }}>{opt.title}</div>
+                          <div style={{ fontSize: '13px', color: '#94A3B8', lineHeight: 1.55, whiteSpace: 'pre-line' }}>{opt.desc}</div>
+                        </button>
+                      );
+                    })}
                   </div>
-                ))}
-                <label style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', fontSize: '13px', color: '#94A3B8', cursor: 'pointer', lineHeight: 1.5 }}>
-                  <input type="checkbox" required style={{ marginTop: '2px', accentColor: '#8B5CF6', flexShrink: 0 }} />
-                  <span>I agree to the Terms of Service and Privacy Policy</span>
-                </label>
-                <button type="submit" disabled={loading}
-                  style={{ ...btnPrimary, padding: '13px', fontSize: '15px', width: '100%', marginTop: '4px', opacity: loading ? 0.6 : 1, cursor: loading ? 'not-allowed' : 'pointer' }}
-                  onMouseEnter={e => { if (!loading) btnPrimaryHover(e); }}
-                  onMouseLeave={e => { if (!loading) btnPrimaryLeave(e); }}
-                >{loading ? 'Creating Account...' : 'Create Account'}</button>
-                <p style={{ textAlign: 'center', fontSize: '14px', color: '#94A3B8', margin: 0 }}>
-                  Already have an account?{' '}
-                  <button type="button" onClick={() => setCurrentPage('login')} style={{ color: '#A78BFA', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: '14px' }}>Log in</button>
-                </p>
-              </form>
+
+                  <button
+                    onClick={handleSignupSubmit}
+                    disabled={!selectedAccountType || loading}
+                    style={{ ...btnPrimary, padding: '13px', fontSize: '15px', width: '100%', opacity: (!selectedAccountType || loading) ? 0.45 : 1, cursor: (!selectedAccountType || loading) ? 'not-allowed' : 'pointer' }}
+                    onMouseEnter={e => { if (selectedAccountType && !loading) btnPrimaryHover(e); }}
+                    onMouseLeave={e => { if (selectedAccountType && !loading) btnPrimaryLeave(e); }}
+                  >{loading ? 'Creating Account...' : 'Continue'}</button>
+
+                  <button type="button"
+                    onClick={() => { setSignupStep('form'); setSelectedAccountType(null); }}
+                    style={{ background: 'none', border: 'none', color: '#4B6279', fontSize: '13px', cursor: 'pointer', textAlign: 'center', transition: 'color 0.2s' }}
+                    onMouseEnter={e => e.currentTarget.style.color = '#94A3B8'}
+                    onMouseLeave={e => e.currentTarget.style.color = '#4B6279'}
+                  >← Back</button>
+                </div>
+              )}
             </div>
           </div>
         </section>
