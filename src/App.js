@@ -24,6 +24,14 @@ const AxigonWebsite = () => {
   const [signupStep, setSignupStep] = useState('form'); // 'form' | 'account-type'
   const [selectedAccountType, setSelectedAccountType] = useState(null);
   const [personalToastIndex, setPersonalToastIndex] = useState(null);
+  const [financeMessages, setFinanceMessages] = useState([]);
+  const [financeInput, setFinanceInput] = useState('');
+  const [financeLoading, setFinanceLoading] = useState(false);
+  const [financeConversations, setFinanceConversations] = useState([]);
+  const [financeConversationId, setFinanceConversationId] = useState(null);
+  const [financeProfile, setFinanceProfile] = useState(null);
+  const [financeUploadStatus, setFinanceUploadStatus] = useState(null); // null|'uploading'|'processing'|'done'|'error'
+  const [financeUploadMessage, setFinanceUploadMessage] = useState('');
   const [profileData, setProfileData] = useState({ name: '', phone: '', dateOfBirth: '', city: '', occupation: '', annualIncome: '' });
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileError, setProfileError] = useState('');
@@ -199,6 +207,76 @@ const AxigonWebsite = () => {
     }
   };
 
+  const fetchFinanceConversations = async () => {
+    try {
+      const res = await fetch('/api/finance/conversations', { credentials: 'include' });
+      if (res.ok) {
+        const data = await res.json();
+        setFinanceConversations(data.conversations || []);
+      }
+    } catch {}
+  };
+
+  const fetchFinanceProfile = async () => {
+    try {
+      const res = await fetch('/api/finance/profile', { credentials: 'include' });
+      if (res.ok) {
+        const data = await res.json();
+        setFinanceProfile(data.profile || null);
+      }
+    } catch {}
+  };
+
+  const handleFinanceSend = async (e) => {
+    e.preventDefault();
+    const msg = financeInput.trim();
+    if (!msg || financeLoading) return;
+    setFinanceMessages(prev => [...prev, { role: 'user', text: msg }]);
+    setFinanceInput('');
+    setFinanceLoading(true);
+    try {
+      const res = await fetch('/api/finance/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ message: msg, conversationId: financeConversationId }),
+      });
+      const data = await res.json();
+      const reply = data.response || data.error || 'No response received.';
+      if (data.conversationId) setFinanceConversationId(data.conversationId);
+      setFinanceMessages(prev => [...prev, { role: 'assistant', text: reply }]);
+      fetchFinanceConversations();
+    } catch {
+      setFinanceMessages(prev => [...prev, { role: 'assistant', text: 'Error reaching the server. Please try again.' }]);
+    } finally {
+      setFinanceLoading(false);
+    }
+  };
+
+  const handleFinanceUpload = async (file) => {
+    if (!file) return;
+    setFinanceUploadStatus('uploading');
+    setFinanceUploadMessage('');
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      setFinanceUploadStatus('processing');
+      const res = await fetch('/api/finance/upload', {
+        method: 'POST',
+        credentials: 'include',
+        body: formData,
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Upload failed');
+      setFinanceUploadStatus('done');
+      setFinanceUploadMessage(data.summary || 'Document processed successfully.');
+      fetchFinanceProfile();
+    } catch (err) {
+      setFinanceUploadStatus('error');
+      setFinanceUploadMessage(err.message || 'Upload failed. Please try again.');
+    }
+  };
+
   const handleDemoSubmit = (e) => {
     e.preventDefault();
     console.log('Demo request submitted:', demoForm);
@@ -218,6 +296,13 @@ const AxigonWebsite = () => {
 
   useEffect(() => {
     if (currentPage === 'legal-gpt') fetchLegalConversations();
+  }, [currentPage]);
+
+  useEffect(() => {
+    if (currentPage === 'life-finance') {
+      fetchFinanceConversations();
+      fetchFinanceProfile();
+    }
   }, [currentPage]);
 
   const handleLegalSend = async (e) => {
@@ -823,7 +908,7 @@ const AxigonWebsite = () => {
             {/* Agent tiles */}
             <div className="grid md:grid-cols-2 gap-5">
               {[
-                { name: 'Life Finance', color: '#10B981', desc: 'Understand your money, plan your future' },
+                { name: 'Life Finance', color: '#10B981', desc: 'Understand your money, plan your future', page: 'life-finance' },
                 { name: 'Career Co-Pilot', color: '#8B5CF6', desc: 'Close skill gaps, negotiate better, grow faster' },
                 { name: 'Decision Intelligence', color: '#22D3EE', desc: "Model life's big decisions with real numbers" },
                 { name: 'Health & Habits', color: '#F43F5E', desc: 'Connect your habits to your life outcomes' },
@@ -835,7 +920,14 @@ const AxigonWebsite = () => {
                   <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '2px', backgroundColor: a.color }} />
                   <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#F1F5F9', marginBottom: '12px' }}>{a.name}</h3>
                   <p style={{ fontSize: '14px', color: '#94A3B8', lineHeight: 1.65, marginBottom: '20px' }}>{a.desc}</p>
-                  {personalToastIndex === i ? (
+                  {a.page ? (
+                    <button
+                      onClick={() => setCurrentPage(a.page)}
+                      style={{ fontSize: '13px', fontWeight: 600, color: a.color, background: 'none', border: 'none', padding: 0, cursor: 'pointer', transition: 'opacity 0.2s' }}
+                      onMouseEnter={e => e.currentTarget.style.opacity = '0.65'}
+                      onMouseLeave={e => e.currentTarget.style.opacity = '1'}
+                    >Launch Agent →</button>
+                  ) : personalToastIndex === i ? (
                     <span style={{ fontSize: '13px', color: '#A78BFA', fontStyle: 'italic' }}>Coming soon — we're building this for you</span>
                   ) : (
                     <button
@@ -850,6 +942,239 @@ const AxigonWebsite = () => {
             </div>
 
           </div>
+        </section>
+      )}
+
+      {/* ════════════════════════════════════════════
+          LIFE FINANCE
+      ════════════════════════════════════════════ */}
+      {currentPage === 'life-finance' && (
+        <section style={{ minHeight: '100vh', backgroundColor: '#06080F', paddingTop: '64px', display: 'flex' }}>
+
+          {/* ── Left Sidebar ── */}
+          <div style={{ width: '220px', flexShrink: 0, backgroundColor: '#080C16', borderRight: '1px solid #1E2D45', display: 'flex', flexDirection: 'column', height: 'calc(100vh - 64px)', position: 'sticky', top: '64px' }}>
+            <div style={{ padding: '20px 16px 12px', borderBottom: '1px solid #1E2D45' }}>
+              <button
+                onClick={() => setCurrentPage('personal-dashboard')}
+                style={{ background: 'none', border: 'none', color: '#4B6279', fontSize: '12px', fontWeight: 600, cursor: 'pointer', padding: 0, marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '6px', transition: 'color 0.2s', fontFamily: 'inherit' }}
+                onMouseEnter={e => e.currentTarget.style.color = '#94A3B8'}
+                onMouseLeave={e => e.currentTarget.style.color = '#4B6279'}
+              >← Dashboard</button>
+              <div style={{ fontSize: '16px', fontWeight: 800, color: '#F1F5F9', marginBottom: '12px' }}>
+                Life <span style={{ background: 'linear-gradient(135deg, #10B981, #22D3EE)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Finance</span>
+              </div>
+              <button
+                onClick={() => { setFinanceMessages([]); setFinanceConversationId(null); setFinanceInput(''); setFinanceUploadStatus(null); setFinanceUploadMessage(''); }}
+                style={{ width: '100%', padding: '9px', borderRadius: '8px', background: 'linear-gradient(135deg, #10B981, #059669)', color: 'white', border: 'none', fontWeight: 700, fontSize: '13px', cursor: 'pointer', transition: 'opacity 0.2s', fontFamily: 'inherit' }}
+                onMouseEnter={e => e.currentTarget.style.opacity = '0.85'}
+                onMouseLeave={e => e.currentTarget.style.opacity = '1'}
+              >+ New Chat</button>
+            </div>
+            <div style={{ flex: 1, overflowY: 'auto', padding: '8px' }}>
+              {financeConversations.length === 0 && (
+                <p style={{ color: '#2D3F55', fontSize: '12px', textAlign: 'center', marginTop: '24px', padding: '0 8px' }}>No conversations yet</p>
+              )}
+              {financeConversations.map(conv => {
+                const isActive = financeConversationId === conv._id.toString();
+                const date = new Date(conv.updatedAt || conv.createdAt).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' });
+                return (
+                  <button key={conv._id}
+                    onClick={async () => {
+                      setFinanceConversationId(conv._id.toString());
+                      try {
+                        const res = await fetch(`/api/finance/messages?conversationId=${conv._id}`, { credentials: 'include' });
+                        const data = await res.json();
+                        setFinanceMessages((data.messages || []).map(m => ({ role: m.role, text: m.content })));
+                      } catch {}
+                    }}
+                    style={{ width: '100%', textAlign: 'left', padding: '10px 12px', borderRadius: '8px', border: 'none', backgroundColor: isActive ? 'rgba(16,185,129,0.12)' : 'transparent', cursor: 'pointer', transition: 'background-color 0.15s', marginBottom: '2px', outline: isActive ? '1px solid rgba(16,185,129,0.3)' : 'none', fontFamily: 'inherit' }}
+                    onMouseEnter={e => { if (!isActive) e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.04)'; }}
+                    onMouseLeave={e => { if (!isActive) e.currentTarget.style.backgroundColor = 'transparent'; }}
+                  >
+                    <div style={{ fontSize: '13px', fontWeight: 500, color: isActive ? '#6EE7B7' : '#94A3B8', marginBottom: '3px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {conv.title.length > 35 ? conv.title.slice(0, 35) + '…' : conv.title}
+                    </div>
+                    <div style={{ fontSize: '11px', color: '#2D3F55' }}>{date}</div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* ── Middle: Chat ── */}
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', height: 'calc(100vh - 64px)', overflow: 'hidden' }}>
+
+            {/* Messages area */}
+            <div style={{ flex: 1, overflowY: 'auto', padding: '28px 32px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+
+              {/* Upload prompt — always visible until a doc is uploaded */}
+              {!financeProfile && (
+                <div style={{ backgroundColor: '#0A1120', border: '1px dashed #1E2D45', borderRadius: '12px', padding: '28px', marginBottom: '8px' }}>
+                  <p style={{ color: '#94A3B8', fontSize: '14px', fontWeight: 600, marginBottom: '6px', textAlign: 'center' }}>Upload a bank statement or salary slip to get started with personalised advice</p>
+                  <p style={{ color: '#4B6279', fontSize: '12px', textAlign: 'center', marginBottom: '20px' }}>Accepted: PDF, JPG, PNG — your data stays private</p>
+                  <label
+                    style={{ display: 'block', border: '1px dashed #1E2D45', borderRadius: '10px', padding: '32px 20px', textAlign: 'center', cursor: 'pointer', transition: 'border-color 0.2s, background-color 0.2s' }}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor = '#10B981'; e.currentTarget.style.backgroundColor = 'rgba(16,185,129,0.04)'; }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = '#1E2D45'; e.currentTarget.style.backgroundColor = 'transparent'; }}
+                    onDragOver={e => { e.preventDefault(); e.currentTarget.style.borderColor = '#10B981'; e.currentTarget.style.backgroundColor = 'rgba(16,185,129,0.06)'; }}
+                    onDragLeave={e => { e.currentTarget.style.borderColor = '#1E2D45'; e.currentTarget.style.backgroundColor = 'transparent'; }}
+                    onDrop={e => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) handleFinanceUpload(f); }}
+                  >
+                    <input type="file" accept=".pdf,.jpg,.jpeg,.png" style={{ display: 'none' }} onChange={e => { if (e.target.files[0]) handleFinanceUpload(e.target.files[0]); }} />
+                    {financeUploadStatus === null && (
+                      <>
+                        <p style={{ color: '#4B6279', fontSize: '13px', marginBottom: '8px' }}>Drag and drop a file here, or click to browse</p>
+                        <span style={{ fontSize: '12px', color: '#2D3F55' }}>PDF, JPG, PNG</span>
+                      </>
+                    )}
+                    {financeUploadStatus === 'uploading' && <p style={{ color: '#94A3B8', fontSize: '13px' }}>Uploading...</p>}
+                    {financeUploadStatus === 'processing' && <p style={{ color: '#10B981', fontSize: '13px' }}>Processing with AI...</p>}
+                    {financeUploadStatus === 'error' && <p style={{ color: '#F43F5E', fontSize: '13px' }}>{financeUploadMessage}</p>}
+                  </label>
+                  {financeUploadStatus === 'done' && (
+                    <div style={{ marginTop: '14px', padding: '12px 16px', borderRadius: '8px', backgroundColor: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.25)', color: '#6EE7B7', fontSize: '13px', fontWeight: 500 }}>
+                      {financeUploadMessage}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Upload strip when profile exists */}
+              {financeProfile && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 14px', backgroundColor: '#080C16', border: '1px solid #1E2D45', borderRadius: '8px', marginBottom: '4px' }}>
+                  <span style={{ fontSize: '12px', color: '#4B6279', flex: 1 }}>Upload another document to update your profile</span>
+                  <label style={{ cursor: 'pointer' }}>
+                    <input type="file" accept=".pdf,.jpg,.jpeg,.png" style={{ display: 'none' }} onChange={e => { if (e.target.files[0]) handleFinanceUpload(e.target.files[0]); }} />
+                    <span style={{ fontSize: '12px', fontWeight: 600, color: '#10B981', padding: '6px 14px', border: '1px solid rgba(16,185,129,0.3)', borderRadius: '6px', transition: 'all 0.2s' }}>
+                      {financeUploadStatus === 'uploading' || financeUploadStatus === 'processing' ? 'Processing...' : 'Upload'}
+                    </span>
+                  </label>
+                  {financeUploadStatus === 'done' && financeProfile && (
+                    <span style={{ fontSize: '12px', color: '#6EE7B7' }}>{financeUploadMessage}</span>
+                  )}
+                </div>
+              )}
+
+              {/* Empty chat state */}
+              {financeMessages.length === 0 && (
+                <div style={{ textAlign: 'center', marginTop: '40px' }}>
+                  <p style={{ color: '#4B6279', fontSize: '15px', marginBottom: '8px' }}>Ask anything about your finances</p>
+                  <p style={{ color: '#2D3F55', fontSize: '13px' }}>SIP, PPF, budgeting, ITR, tax planning, and more</p>
+                </div>
+              )}
+
+              {/* Messages */}
+              {financeMessages.map((msg, i) => {
+                if (msg.role === 'user') {
+                  return (
+                    <div key={i} style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                      <div style={{ maxWidth: '72%', padding: '12px 16px', borderRadius: '16px 16px 4px 16px', backgroundColor: '#10B981', color: '#fff', fontSize: '14px', lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>
+                        {msg.text}
+                      </div>
+                    </div>
+                  );
+                }
+                // Assistant — parse structured sections
+                const sections = [];
+                const raw = msg.text;
+                const sectionLabels = ['Summary', 'Analysis', 'Action Items'];
+                let remaining = raw;
+                const found = [];
+                sectionLabels.forEach(label => {
+                  const re = new RegExp(`${label}:\\s*`, 'i');
+                  const idx = remaining.search(re);
+                  if (idx !== -1) found.push({ label, idx: raw.indexOf(remaining.slice(idx)) });
+                });
+                found.sort((a, b) => a.idx - b.idx);
+
+                if (found.length === 0) {
+                  sections.push({ label: null, content: raw });
+                } else {
+                  found.forEach((f, fi) => {
+                    const start = f.idx + f.label.length + 1;
+                    const end = found[fi + 1] ? found[fi + 1].idx : raw.length;
+                    sections.push({ label: f.label, content: raw.slice(start).slice(raw.slice(start).search(/\S/), end - start).trim() });
+                  });
+                }
+
+                const sectionColors = { 'Summary': '#10B981', 'Analysis': '#22D3EE', 'Action Items': '#8B5CF6' };
+                return (
+                  <div key={i} style={{ display: 'flex', justifyContent: 'flex-start' }}>
+                    <div style={{ maxWidth: '78%', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      {sections.map((sec, si) => (
+                        <div key={si} style={{ padding: '12px 16px', borderRadius: si === 0 ? '16px 16px 4px 4px' : si === sections.length - 1 ? '4px 4px 16px 4px' : '4px', backgroundColor: '#0F1A2E', border: '1px solid #1E2D45' }}>
+                          {sec.label && (
+                            <div style={{ fontSize: '11px', fontWeight: 700, color: sectionColors[sec.label] || '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '6px' }}>{sec.label}</div>
+                          )}
+                          <div style={{ color: '#F1F5F9', fontSize: '14px', lineHeight: 1.75, whiteSpace: 'pre-wrap' }}>{sec.content}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+
+              {financeLoading && (
+                <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
+                  <div style={{ padding: '12px 18px', borderRadius: '16px 16px 16px 4px', backgroundColor: '#0F1A2E', border: '1px solid #1E2D45', color: '#4B6279', fontSize: '14px' }}>Thinking...</div>
+                </div>
+              )}
+            </div>
+
+            {/* Input bar */}
+            <div style={{ padding: '18px 32px', borderTop: '1px solid #1E2D45', backgroundColor: '#06080F' }}>
+              <form onSubmit={handleFinanceSend} style={{ display: 'flex', gap: '10px' }}>
+                <input
+                  type="text"
+                  placeholder="Ask about your finances..."
+                  value={financeInput}
+                  onChange={e => setFinanceInput(e.target.value)}
+                  disabled={financeLoading}
+                  style={{ flex: 1, padding: '13px 16px', borderRadius: '10px', border: '1px solid #1E2D45', backgroundColor: '#0F1A2E', color: '#F1F5F9', fontSize: '14px', outline: 'none', fontFamily: 'inherit', opacity: financeLoading ? 0.6 : 1, transition: 'border-color 0.2s' }}
+                  onFocus={e => e.currentTarget.style.borderColor = '#10B981'}
+                  onBlur={e => e.currentTarget.style.borderColor = '#1E2D45'}
+                />
+                <button type="submit" disabled={financeLoading || !financeInput.trim()}
+                  style={{ padding: '13px 22px', borderRadius: '10px', background: 'linear-gradient(135deg, #10B981, #059669)', color: 'white', border: 'none', fontWeight: 700, fontSize: '14px', cursor: financeLoading || !financeInput.trim() ? 'not-allowed' : 'pointer', opacity: financeLoading || !financeInput.trim() ? 0.5 : 1, transition: 'opacity 0.2s', whiteSpace: 'nowrap', fontFamily: 'inherit' }}
+                >Send</button>
+              </form>
+            </div>
+          </div>
+
+          {/* ── Right Panel: Financial Summary ── */}
+          <div style={{ width: '260px', flexShrink: 0, backgroundColor: '#080C16', borderLeft: '1px solid #1E2D45', display: 'flex', flexDirection: 'column', height: 'calc(100vh - 64px)', position: 'sticky', top: '64px', overflowY: 'auto' }}>
+            <div style={{ padding: '20px 16px', borderBottom: '1px solid #1E2D45' }}>
+              <p style={{ fontSize: '11px', fontWeight: 700, color: '#10B981', textTransform: 'uppercase', letterSpacing: '0.1em', margin: '0 0 4px' }}>Financial Summary</p>
+            </div>
+            <div style={{ padding: '16px' }}>
+              {!financeProfile ? (
+                <p style={{ color: '#2D3F55', fontSize: '13px', lineHeight: 1.6 }}>No documents uploaded yet. Upload a bank statement or salary slip to see your summary here.</p>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                  {[
+                    { label: 'Monthly Income', value: financeProfile.monthlyIncome },
+                    { label: 'Annual Income',  value: financeProfile.annualIncome },
+                    { label: 'Monthly Expenses', value: financeProfile.totalExpenses },
+                    { label: 'Current Balance', value: financeProfile.currentBalance },
+                  ].map(({ label, value }) => value != null && (
+                    <div key={label}>
+                      <p style={{ fontSize: '11px', color: '#4B6279', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '3px' }}>{label}</p>
+                      <p style={{ fontSize: '15px', fontWeight: 700, color: '#F1F5F9' }}>Rs.{Number(value).toLocaleString('en-IN')}</p>
+                    </div>
+                  ))}
+                  <div>
+                    <p style={{ fontSize: '11px', color: '#4B6279', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '3px' }}>Documents</p>
+                    <p style={{ fontSize: '15px', fontWeight: 700, color: '#F1F5F9' }}>{financeProfile.documentsCount || 0} uploaded</p>
+                  </div>
+                  <div>
+                    <p style={{ fontSize: '11px', color: '#4B6279', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '3px' }}>Last Updated</p>
+                    <p style={{ fontSize: '13px', color: '#94A3B8' }}>{new Date(financeProfile.lastUpdated).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
         </section>
       )}
 
